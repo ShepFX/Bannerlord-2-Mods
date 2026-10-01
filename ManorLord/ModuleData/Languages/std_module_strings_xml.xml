@@ -14,10 +14,13 @@
     <string id="ml_btn_accept" text="Accept" />
     <string id="ml_btn_cancel" text="Cancel" />
     <string id="ml_btn_cancel_project" text="Cancel project" />
+    <string id="ml_btn_cannot_pay" text="Explain you cannot pay" />
     <string id="ml_btn_continue" text="Continue" />
     <string id="ml_btn_deposit" text="Deposit" />
     <string id="ml_btn_keep_building" text="Keep building" />
     <string id="ml_btn_keep_it" text="Keep it" />
+    <string id="ml_btn_pay" text="Pay" />
+    <string id="ml_btn_refuse" text="Refuse" />
     <string id="ml_btn_return" text="Return" />
     <string id="ml_btn_sell" text="Sell" />
     <string id="ml_btn_understood" text="Understood" />
@@ -37,12 +40,17 @@
     <string id="ml_defense_won_calc" text="Under your direction, the household guard holds the estate and drives the raiders away. The manor and its stores are safe." />
     <string id="ml_defense_won_played" text="You and your household guard drove the raiders from the estate. Your manor and its stores are safe." />
     <string id="ml_defense_won_title" text="Manor defense won" />
+    <string id="ml_dues_body" text="A reeve from {LORD} arrives at {MANOR_NAME} to collect the customary dues on your land: {AMOUNT} denars.&#10;&#10;Paying keeps the peace with the village's lord. Refusing will not be forgotten." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#10;&#10;Neither the manor treasury nor your purse can cover it." />
+    <string id="ml_dues_title" text="The Lord's Dues" />
     <string id="ml_entry_holdings" text="Manor holdings (owned near {SETTLEMENT})" />
     <string id="ml_entry_inquire" text="Inquire about purchasing a manor" />
     <string id="ml_entry_visit" text="Visit your manor" />
     <string id="ml_focus_crops_name" text="Cash crops" />
     <string id="ml_focus_livestock_name" text="Livestock" />
     <string id="ml_focus_mixed_name" text="Mixed farming" />
+    <string id="ml_household_stationed" text="Stationed troops: {COUNT}/{CAP} ({WOUNDED} wounded), {WAGES} denars a day. They train on the training field and heal faster with a physician." />
+    <string id="ml_household_stationed_none" text="No troops are stationed here. Leave soldiers at the manor to train them and let the wounded recover." />
     <string id="ml_inq_cancel_body" text="Stop work on the {PROJECT}? Half of the recorded project cost ({REFUND} denars) will be recovered." />
     <string id="ml_inq_cancel_title" text="Cancel construction?" />
     <string id="ml_inq_deposit_title" text="Deposit manor funds" />
@@ -73,6 +81,8 @@
     <string id="ml_msg_already_rested" text="You have already taken a full rest here today." />
     <string id="ml_msg_captain_hired" text="A veteran captain takes command of the household guard." />
     <string id="ml_msg_captain_left" text="The unpaid household captain has left your service." />
+    <string id="ml_msg_dues_paid" text="You paid {AMOUNT} denars in dues to {LORD}." />
+    <string id="ml_msg_dues_refused" text="{LORD} received no dues from you. Your relation with them suffers." />
     <string id="ml_msg_focus_crops" text="The estate will now follow a cash crop plan." />
     <string id="ml_msg_focus_livestock" text="The estate will now follow a livestock plan." />
     <string id="ml_msg_focus_mixed" text="The estate will now follow a mixed farming plan." />
@@ -86,14 +96,20 @@
     <string id="ml_msg_order_watch" text="The household guard now follows close watch orders." />
     <string id="ml_msg_physician_hired" text="A physician establishes a small surgery at the estate." />
     <string id="ml_msg_physician_left" text="The unpaid estate physician has left your service." />
+    <string id="ml_msg_produce_sell" text="The steward will sell the estate's produce." />
+    <string id="ml_msg_produce_store" text="The steward will store the estate's produce in the storehouse." />
     <string id="ml_msg_purchased" text="You purchased a manor near {SETTLEMENT}." />
     <string id="ml_msg_raid_warning" text="Your manor near {SETTLEMENT} is threatened by raiders!" />
     <string id="ml_msg_repairs_begun" text="Repairs have begun and should take two days." />
     <string id="ml_msg_rested" text="You rest safely and recover {AMOUNT} hit points." />
     <string id="ml_msg_sold" text="The property was sold for {VALUE} denars." />
+    <string id="ml_msg_stationed_deserted" text="An unpaid stationed {TROOP} has deserted." />
+    <string id="ml_msg_stationed_lost" text="{KILLED} stationed troops were killed and {WOUNDED} wounded." />
+    <string id="ml_msg_stationed_returned" text="Your stationed troops rejoin your party." />
     <string id="ml_msg_steward_hired" text="A steward takes charge of the estate's fields and accounts." />
     <string id="ml_msg_steward_left" text="The unpaid estate steward has left your service." />
     <string id="ml_msg_supplies_delivered" text="{AMOUNT} supplies were delivered to the manor." />
+    <string id="ml_msg_village_grateful" text="The people of {VILLAGE} are grateful that you defended them." />
     <string id="ml_msg_work_begun" text="Work has begun and should be complete in {DAYS} days." />
     <string id="ml_msg_work_complete" text="Work at {MANOR_NAME} is complete: {PROJECT}." />
     <string id="ml_opt_back" text="Return to the estate overview" />
@@ -123,12 +139,15 @@
     <string id="ml_opt_order_watch" text="Order: close watch - strongest manor defense" />
     <string id="ml_opt_palisade" text="Build a palisade (6000{GOLD_ICON}, 4 days) - reduces raid losses" />
     <string id="ml_opt_physician" text="Retain an estate physician (3500{GOLD_ICON})" />
+    <string id="ml_opt_produce_sell" text="Sell the estate's produce for income" />
+    <string id="ml_opt_produce_store" text="Store the estate's produce in the storehouse" />
     <string id="ml_opt_production" text="Manage estate production buildings" />
     <string id="ml_opt_quarters" text="Build guard quarters (7000{GOLD_ICON}, 4 days) - unlocks household recruitment" />
     <string id="ml_opt_rename" text="Name or rename the estate" />
     <string id="ml_opt_repair" text="Begin repairs ({ML_REPAIR_COST}{GOLD_ICON}, 2 days)" />
     <string id="ml_opt_rest" text="Rest and recover at the manor" />
     <string id="ml_opt_sell" text="Sell the manor ({ML_SALE_PRICE}{GOLD_ICON})" />
+    <string id="ml_opt_station" text="Station or collect troops ({COUNT}/{CAP} stationed)" />
     <string id="ml_opt_steward" text="Hire an estate steward (2500{GOLD_ICON})" />
     <string id="ml_opt_stewardship" text="Manage estate staff and policy" />
     <string id="ml_opt_storehouse" text="Manage treasury and storehouse" />
@@ -158,6 +177,9 @@
     <string id="ml_p_tier3" text="grand estate expansion" />
     <string id="ml_p_training" text="training field" />
     <string id="ml_p_workshop" text="estate workshop" />
+    <string id="ml_produce_fallback" text="Produce: storing is paused until the storehouse is built or repaired; it is sold meanwhile." />
+    <string id="ml_produce_selling" text="Produce: sold, with the income paid into the treasury." />
+    <string id="ml_produce_storing" text="Produce: stored as goods in the storehouse ({ITEMS}), worth about {VALUE} denars a day." />
     <string id="ml_project_current" text="Current project: {PROJECT}. Completion is expected in {DAYS} days." />
     <string id="ml_project_none" text="No construction project is active." />
     <string id="ml_project_summary" text="Project underway: {PROJECT}, due in {DAYS} days." />
@@ -177,6 +199,7 @@
     <string id="ml_scene_tip_withdraw" text="Requires a storehouse with funds in it." />
     <string id="ml_scene_unavailable" text="Manor scene unavailable" />
     <string id="ml_staff_summary" text="steward {STEWARD}, captain {CAPTAIN}, physician {PHYSICIAN}" />
+    <string id="ml_station_over_cap" text="The manor can house only {CAP} stationed troops." />
     <string id="ml_store_damaged" text="The damaged storehouse cannot be opened until repairs are complete." />
     <string id="ml_store_missing" text="A storehouse must be built before funds or goods can be secured here." />
     <string id="ml_store_ready" text="The storehouse is secure and available." />
@@ -193,16 +216,21 @@
     <string id="ml_tip_need_denars" text="You need {AMOUNT} denars." />
     <string id="ml_tip_no_guard" text="You have no household guard with whom to mount a defense." />
     <string id="ml_tip_not_enough_gold" text="You do not have enough denars." />
+    <string id="ml_tip_produce_store" text="Requires an intact storehouse." />
     <string id="ml_tip_project_underway" text="Another project is already underway." />
     <string id="ml_tip_repair_before_plan" text="Repair the manor before changing its production plan." />
     <string id="ml_tip_repair_first" text="Repair the manor first." />
     <string id="ml_tip_requires_landed" text="Requires a landed estate." />
     <string id="ml_tip_requires_rank" text="Requires estate rank {RANK}." />
+    <string id="ml_tip_station_quarters" text="Requires guard quarters." />
     <string id="ml_tip_treasury_short" text="The manor treasury does not contain enough denars." />
     <string id="ml_train_drilled" text="drilled" />
     <string id="ml_train_green" text="green" />
     <string id="ml_train_trained" text="trained" />
     <string id="ml_train_veteran" text="veteran" />
+    <string id="ml_village_dues" text="{LORD} expects about {AMOUNT} denars in dues in {DAYS} days (relation {RELATION})." />
+    <string id="ml_village_no_dues" text="Your clan holds the village, so no dues are owed." />
+    <string id="ml_village_standing" text="The estate adds {HEARTHS} hearths a day to {VILLAGE}. Its notables' regard for you: {REGARD}.&#10;{DUES}" />
     <string id="ml_w_active" text="active" />
     <string id="ml_w_another_village" text="another village" />
     <string id="ml_w_built" text="built" />

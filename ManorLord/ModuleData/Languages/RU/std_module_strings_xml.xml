@@ -218,5 +218,33 @@
     <string id="ml_walk_no_project" text="Строительные работы сейчас не ведутся." />
     <string id="ml_walk_project" text="Работники заняты объектом «{PROJECT}»." />
     <string id="ml_walk_secure" text="В поместье порядок и покой." />
+    <string id="ml_btn_cannot_pay" text="Объяснить, что платить нечем" />
+    <string id="ml_btn_pay" text="Заплатить" />
+    <string id="ml_btn_refuse" text="Отказать" />
+    <string id="ml_dues_body" text="Староста от {LORD} прибывает в поместье {MANOR_NAME} за обычной податью с вашей земли: {AMOUNT} денаров.&#xA;&#xA;Уплата сохранит мир с хозяином деревни. Отказ не забудут." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;Ни казна поместья, ни ваш кошелёк не покроют эту сумму." />
+    <string id="ml_dues_title" text="Подать господину" />
+    <string id="ml_household_stationed" text="Войска в поместье: {COUNT}/{CAP} (раненых: {WOUNDED}), {WAGES} денаров в день. Они упражняются на тренировочной площадке и быстрее поправляются при лекаре." />
+    <string id="ml_household_stationed_none" text="В поместье не размещено войск. Оставьте здесь воинов, чтобы обучить их и дать раненым поправиться." />
+    <string id="ml_msg_dues_paid" text="Вы уплатили {AMOUNT} денаров подати господину {LORD}." />
+    <string id="ml_msg_dues_refused" text="{LORD} не получил от вас подати. Ваши отношения ухудшаются." />
+    <string id="ml_msg_produce_sell" text="Управляющий будет продавать продукцию поместья." />
+    <string id="ml_msg_produce_store" text="Управляющий будет складывать продукцию поместья на склад." />
+    <string id="ml_msg_stationed_deserted" text="Воин из гарнизона поместья ({TROOP}), не получив жалованья, дезертировал." />
+    <string id="ml_msg_stationed_lost" text="Из войск поместья погибло: {KILLED}, ранено: {WOUNDED}." />
+    <string id="ml_msg_stationed_returned" text="Войска из поместья возвращаются в ваш отряд." />
+    <string id="ml_msg_village_grateful" text="Жители деревни {VILLAGE} благодарны вам за защиту." />
+    <string id="ml_opt_produce_sell" text="Продавать продукцию поместья ради дохода" />
+    <string id="ml_opt_produce_store" text="Складывать продукцию поместья на склад" />
+    <string id="ml_opt_station" text="Разместить или забрать войска (в поместье: {COUNT}/{CAP})" />
+    <string id="ml_produce_fallback" text="Продукция: хранение приостановлено, пока склад не построен или не отремонтирован; пока что её продают." />
+    <string id="ml_produce_selling" text="Продукция: продаётся, доход поступает в казну." />
+    <string id="ml_produce_storing" text="Продукция: хранится на складе товарами ({ITEMS}), примерно на {VALUE} денаров в день." />
+    <string id="ml_station_over_cap" text="Поместье вмещает не больше {CAP} воинов." />
+    <string id="ml_tip_produce_store" text="Требуется неповреждённый склад." />
+    <string id="ml_tip_station_quarters" text="Требуется казарма стражи." />
+    <string id="ml_village_dues" text="{LORD} ожидает около {AMOUNT} денаров подати через {DAYS} дн. (отношения {RELATION})." />
+    <string id="ml_village_no_dues" text="Деревня принадлежит вашему клану, так что подать не взимается." />
+    <string id="ml_village_standing" text="Поместье прибавляет деревне {VILLAGE} {HEARTHS} очагов в день. Уважение местной знати к вам: {REGARD}.&#xA;{DUES}" />
   </strings>
 </base>

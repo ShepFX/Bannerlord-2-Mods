@@ -15,7 +15,7 @@ using TaleWorlds.ObjectSystem;
 
 namespace ManorLord;
 
-public sealed class ManorLordBehavior : CampaignBehaviorBase
+public sealed partial class ManorLordBehavior : CampaignBehaviorBase
 {
     private const string MenuId = "manor_lord_estate";
     private const string ImprovementsMenuId = "manor_lord_improvements";
@@ -112,7 +112,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         Physician = _hasPhysician,
         GuardCount = _guardCount,
         GuardTroop = GetGuardTroop(settlement),
-        StaffTroop = settlement?.Culture?.Villager ?? settlement?.Culture?.BasicTroop
+        StaffTroop = settlement?.Culture?.Villager ?? settlement?.Culture?.BasicTroop,
+        Stationed = StationedForScene(12)
     };
 
     private static TextObject Employed(bool employed) => employed
@@ -174,6 +175,9 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         store.SyncData("ml_orchard", ref _orchard);
         store.SyncData("ml_workshop", ref _workshop);
         store.SyncData("ml_guard_order", ref _guardOrder);
+        SyncStationed(store);
+        SyncGoods(store);
+        SyncVillage(store);
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
@@ -228,6 +232,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         AddMenuOption(starter, HouseholdMenuId, "ml_guard_watch", "{=ml_opt_order_watch}Order: close watch - strongest manor defense", a => GuardOrderCondition(a, "watch"), a => SetGuardOrder("watch"));
         AddMenuOption(starter, HouseholdMenuId, "ml_guard_patrol", "{=ml_opt_order_patrol}Order: village patrols - stronger defense, higher upkeep", a => GuardOrderCondition(a, "patrol"), a => SetGuardOrder("patrol"));
         AddMenuOption(starter, HouseholdMenuId, "ml_guard_drill", "{=ml_opt_order_drill}Order: intensive drills - faster training, higher upkeep", a => GuardOrderCondition(a, "drill"), a => SetGuardOrder("drill"));
+        AddStationedMenus(starter);
         AddBackOption(starter, HouseholdMenuId, "ml_household_back");
 
         // Treasury and storage
@@ -247,6 +252,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         AddMenuOption(starter, StewardshipMenuId, "ml_focus_mixed", "{=ml_opt_focus_mixed}Adopt mixed farming - balanced income and supplies", a => ProductionFocusCondition(a, "mixed"), a => SetProductionFocus("mixed"));
         AddMenuOption(starter, StewardshipMenuId, "ml_focus_crops", "{=ml_opt_focus_crops}Plant cash crops - 30% more income", a => ProductionFocusCondition(a, "crops"), a => SetProductionFocus("crops"));
         AddMenuOption(starter, StewardshipMenuId, "ml_focus_livestock", "{=ml_opt_focus_livestock}Raise livestock - lower income, more supplies", a => ProductionFocusCondition(a, "livestock"), a => SetProductionFocus("livestock"));
+        AddGoodsMenus(starter);
         AddBackOption(starter, StewardshipMenuId, "ml_stewardship_back");
 
         // Production buildings
@@ -360,7 +366,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
     {
         SetMenuBackground(args);
         int dailyUse = DailySupplyUse();
-        MBTextManager.SetTextVariable("ML_HOUSEHOLD_TEXT", new TextObject("{=ml_menu_household}{MANOR_NAME} - Household\n\nGuards: {GUARDS}/{GUARD_CAP} ({TRAINING}).\nStanding orders: {ORDERS}.\nDaily guard wages: {WAGES} denars.\nSupplies: {SUPPLIES} ({SUPPLY_STATUS}).\nCaptain: {CAPTAIN}.\nTraining field: {TRAINING_FIELD}. Guard quarters: {QUARTERS}.\n\nUnpaid guards may desert, while shortages gradually erode their training.")
+        TextObject household = new TextObject("{=ml_menu_household}{MANOR_NAME} - Household\n\nGuards: {GUARDS}/{GUARD_CAP} ({TRAINING}).\nStanding orders: {ORDERS}.\nDaily guard wages: {WAGES} denars.\nSupplies: {SUPPLIES} ({SUPPLY_STATUS}).\nCaptain: {CAPTAIN}.\nTraining field: {TRAINING_FIELD}. Guard quarters: {QUARTERS}.\n\nUnpaid guards may desert, while shortages gradually erode their training.")
             .SetTextVariable("MANOR_NAME", ManorDisplayName())
             .SetTextVariable("GUARDS", _guardCount)
             .SetTextVariable("GUARD_CAP", GuardCapacity())
@@ -379,7 +385,9 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
                 : new TextObject("{=ml_w_not_built}not built"))
             .SetTextVariable("QUARTERS", _guardQuarters
                 ? new TextObject("{=ml_w_built}built")
-                : new TextObject("{=ml_quarters_required}required before recruiting")));
+                : new TextObject("{=ml_quarters_required}required before recruiting"));
+        // The stationed-troops section is appended so the existing translated body is left as it was.
+        MBTextManager.SetTextVariable("ML_HOUSEHOLD_TEXT", WithLine(household, StationedSummary()));
     }
 
     private void InitStorehouseMenu(MenuCallbackArgs args)
@@ -402,7 +410,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
     {
         SetMenuBackground(args);
         GetProjectedDailyEstate(out int gross, out int supplies);
-        MBTextManager.SetTextVariable("ML_STEWARDSHIP_TEXT", new TextObject("{=ml_menu_stewardship}{MANOR_NAME} - Stewardship\n\nSteward: {STEWARD} (20 denars/day).\nCaptain: {CAPTAIN} (20 denars/day).\nPhysician: {PHYSICIAN} (15 denars/day).\nProduction focus: {FOCUS}.\nProjected daily production: {OUTPUT}.\nTotal estate upkeep: {UPKEEP} denars/day.\nVillage hearths: {HEARTHS}.\n\nThe steward deposits estate income directly into the manor treasury.")
+        TextObject stewardship = new TextObject("{=ml_menu_stewardship}{MANOR_NAME} - Stewardship\n\nSteward: {STEWARD} (20 denars/day).\nCaptain: {CAPTAIN} (20 denars/day).\nPhysician: {PHYSICIAN} (15 denars/day).\nProduction focus: {FOCUS}.\nProjected daily production: {OUTPUT}.\nTotal estate upkeep: {UPKEEP} denars/day.\nVillage hearths: {HEARTHS}.\n\nThe steward deposits estate income directly into the manor treasury.")
             .SetTextVariable("MANOR_NAME", ManorDisplayName())
             .SetTextVariable("STEWARD", Employed(_hasSteward))
             .SetTextVariable("CAPTAIN", Employed(_hasCaptain))
@@ -414,7 +422,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
                     .SetTextVariable("SUPPLIES", supplies)
                 : new TextObject("{=ml_w_inactive}inactive"))
             .SetTextVariable("UPKEEP", TotalDailyWages())
-            .SetTextVariable("HEARTHS", (int)(ManorSettlement?.Village?.Hearth ?? 0f)));
+            .SetTextVariable("HEARTHS", (int)(ManorSettlement?.Village?.Hearth ?? 0f));
+        MBTextManager.SetTextVariable("ML_STEWARDSHIP_TEXT", WithLine(new TextObject(WithLine(stewardship, ProduceSummary())), VillageStandingSummary()));
     }
 
     private void InitProductionMenu(MenuCallbackArgs args)
@@ -490,6 +499,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         _estateTier = 1;
         _hasCaptain = _hasPhysician = _mill = _orchard = _workshop = false;
         _guardOrder = "watch";
+        _storeProduce = false; _lastStoredValue = 0; _daysSinceDues = 0; _incomeSinceDues = 0;
+        _stationed = TroopRoster.CreateDummyTroopRoster();
         InformationManager.DisplayMessage(new InformationMessage(new TextObject("{=ml_msg_purchased}You purchased a manor near {SETTLEMENT}.").SetTextVariable("SETTLEMENT", village.Name).ToString(), Colors.Green));
         GameMenu.SwitchToMenu(MenuId);
     }
@@ -927,7 +938,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
     private bool DefenseCondition(MenuCallbackArgs args)
     {
         if (!_underThreat || _defenseAttempted || !AtOwnedManor(args)) return false;
-        args.IsEnabled = _guardCount > 0;
+        args.IsEnabled = _guardCount + StationedHealthy > 0;
         if (!args.IsEnabled) args.Tooltip = new TextObject("{=ml_tip_no_guard}You have no household guard with whom to mount a defense.");
         args.optionLeaveType = GameMenuOption.LeaveType.HostileAction;
         return true;
@@ -956,9 +967,11 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
             if (villageCenter == null) return false;
 
             TroopRoster defenders = TroopRoster.CreateDummyTroopRoster();
-            defenders.AddToCounts(guardTroop, _guardCount);
+            if (_guardCount > 0) defenders.AddToCounts(guardTroop, _guardCount);
+            AddStationedDefenders(defenders);
             TroopRoster attackers = TroopRoster.CreateDummyTroopRoster();
-            int attackerCount = Math.Max(8, 6 + _estateTier * 3 + (_guardCount / 2));
+            // Raiders come in strength to match the household, hired and stationed alike.
+            int attackerCount = Math.Max(8, 6 + _estateTier * 3 + ((_guardCount + StationedHealthy) / 2));
             attackers.AddToCounts(raiderTroop, attackerCount);
 
             ManorDefenseMissionState.ArmDefense(BuildSnapshot(settlement));
@@ -977,13 +990,14 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
     private void ResolveCalculatedDefense()
     {
         int trainingBonus = _guardExperience >= 1000 ? 35 : _guardExperience >= 400 ? 22 : _guardExperience >= 100 ? 10 : 0;
-        int defenseScore = (_guardCount * 6) + trainingBonus + (_palisade ? 25 : 0) + (_hasCaptain ? 20 : 0) + GuardOrderDefenseBonus();
+        int defenseScore = (_guardCount * 6) + StationedDefenseScore() + trainingBonus + (_palisade ? 25 : 0) + (_hasCaptain ? 20 : 0) + GuardOrderDefenseBonus();
         int roll = MBRandom.RandomInt(100);
         if (roll < Math.Min(90, defenseScore))
         {
             _underThreat = false;
             _manorProtectedThisRaid = true;
             InformationManager.ShowInquiry(new InquiryData(DefenseWonTitle, new TextObject("{=ml_defense_won_calc}Under your direction, the household guard holds the estate and drives the raiders away. The manor and its stores are safe.").ToString(), true, false, Victory, string.Empty, null, null), true);
+            RewardDefenseWithVillageGratitude();
         }
         else
         {
@@ -1041,6 +1055,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
             return;
         }
         Hero.MainHero.ChangeHeroGold(value + _treasury);
+        ReturnStationedToParty();
+        _storeProduce = false; _lastStoredValue = 0; _daysSinceDues = 0; _incomeSinceDues = 0;
         _villageId = null; _purchasePrice = 0; _treasury = 0; _guardCount = 0; _guardExperience = 0;
         _palisade = _trainingField = _storehouse = _guardQuarters = _damaged = false;
         _manorName = null; _activeProject = null; _projectCompletionDay = 0d; _hasSteward = false; _supplies = 0;
@@ -1089,7 +1105,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
             .SetTextVariable("GOLD", lost)
             .SetTextVariable("GOODS", goodsLost)
             .SetTextVariable("GUARDS", guardLoss);
-        InformationManager.ShowInquiry(new InquiryData(new TextObject("{=ml_raided_title}Your manor was raided").ToString(), raidedBody.ToString(), true, false, new TextObject("{=ml_btn_understood}Understood").ToString(), string.Empty, null, null), true);
+        TextObject stationedLoss = ApplyStationedCasualties(_palisade ? 0.05f : 0.1f, 0.3f);
+        InformationManager.ShowInquiry(new InquiryData(new TextObject("{=ml_raided_title}Your manor was raided").ToString(), WithLine(raidedBody, stationedLoss), true, false, new TextObject("{=ml_btn_understood}Understood").ToString(), string.Empty, null, null), true);
         _defenseAttempted = false;
     }
 
@@ -1120,6 +1137,7 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
             _underThreat = false;
             _manorProtectedThisRaid = true;
             InformationManager.ShowInquiry(new InquiryData(DefenseWonTitle, new TextObject("{=ml_defense_won_played}You and your household guard drove the raiders from the estate. Your manor and its stores are safe.").ToString(), true, false, Victory, string.Empty, null, null), true);
+            RewardDefenseWithVillageGratitude();
         }
         else
         {
@@ -1144,7 +1162,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
             .SetTextVariable("GUARDS", guardsLost)
             .SetTextVariable("GOLD", goldLost)
             .SetTextVariable("GOODS", goodsLost);
-        InformationManager.ShowInquiry(new InquiryData(new TextObject("{=ml_defense_lost_title}Manor defense lost").ToString(), lostBody.ToString(), true, false, new TextObject("{=ml_btn_continue}Continue").ToString(), string.Empty, null, null), true);
+        TextObject stationedLoss = ApplyStationedCasualties(_hasPhysician ? 1f / 3f : 0.5f, 0.3f);
+        InformationManager.ShowInquiry(new InquiryData(new TextObject("{=ml_defense_lost_title}Manor defense lost").ToString(), WithLine(lostBody, stationedLoss), true, false, new TextObject("{=ml_btn_continue}Continue").ToString(), string.Empty, null, null), true);
     }
 
     private void OnDailyTick()
@@ -1155,21 +1174,37 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         _lastWages = 0;
         int suppliesBefore = _supplies;
         CompleteProjectIfReady();
+        int earnedToday = 0;
+        _lastStoredValue = 0;
         if (_hasSteward && !_damaged)
         {
             GetProjectedDailyEstate(out int grossIncome, out int producedSupplies);
-            _treasury += grossIncome;
+            if (StoringProduce)
+            {
+                // The produce goes into the storehouse as goods instead of being sold for the treasury.
+                _lastStoredValue = StoreDailyProduce();
+                earnedToday = _lastStoredValue;
+            }
+            else
+            {
+                _treasury += grossIncome;
+                _lastGrossIncome = grossIncome;
+                _recordedIncome += grossIncome;
+                earnedToday = grossIncome;
+            }
             _supplies += producedSupplies;
-            _lastGrossIncome = grossIncome;
-            _recordedIncome += grossIncome;
         }
         int supplyUse = DailySupplyUse();
+        bool suppliesShort = false;
         if (supplyUse > 0 && _supplies >= supplyUse) _supplies -= supplyUse;
         else if (supplyUse > 0)
         {
             _supplies = 0;
+            suppliesShort = true;
             _guardExperience = Math.Max(0, _guardExperience - _guardCount);
         }
+        StationedDailyTick(suppliesShort);
+        VillageDailyTick(earnedToday);
         if (_guardCount > 0 && _trainingField && !_damaged)
         {
             int dailyTraining = _guardCount * 2;
@@ -1198,6 +1233,10 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
         {
             _guardCount--;
             InformationManager.DisplayMessage(new InformationMessage(new TextObject("{=ml_msg_guard_deserted}An unpaid manor guard has deserted. {GUARDS} guards remain.").SetTextVariable("GUARDS", _guardCount).ToString(), Colors.Red));
+        }
+        else if (TryStationedDesertion())
+        {
+            // A stationed soldier left instead.
         }
         else if (_hasPhysician)
         {
@@ -1268,24 +1307,15 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
 
     private void GetProjectedDailyEstate(out int income, out int producedSupplies)
     {
-        int baseIncome = Math.Min(150, 30 + (int)(ManorSettlement?.Village?.Hearth ?? 0f) / 20);
-        switch (_productionFocus ?? "mixed")
+        // Income is the value of the day's produce (see ProduceLines), whether it is sold or stored.
+        income = 0;
+        foreach (ProduceLine line in ProduceLines()) income += line.Value;
+        producedSupplies = (_productionFocus ?? "mixed") switch
         {
-            case "crops":
-                income = baseIncome * 130 / 100;
-                producedSupplies = 0;
-                break;
-            case "livestock":
-                income = baseIncome * 85 / 100;
-                producedSupplies = 3;
-                break;
-            default:
-                income = baseIncome;
-                producedSupplies = 1;
-                break;
-        }
-        if (_mill) income += 25;
-        if (_workshop) income += 40;
+            "crops" => 0,
+            "livestock" => 3,
+            _ => 1
+        };
         if (_orchard) producedSupplies += 2;
     }
 
@@ -1324,8 +1354,8 @@ public sealed class ManorLordBehavior : CampaignBehaviorBase
     private int GuardCapacity() => !_guardQuarters ? 0 : _estateTier >= 3 ? 20 : _estateTier >= 2 ? 15 : 10;
     private int GuardDailyWages() => _guardCount * (5 + ((_guardOrder ?? "watch") == "patrol" ? 2 : (_guardOrder ?? "watch") == "drill" ? 1 : 0));
     private int StaffDailyWages() => (_hasSteward ? 20 : 0) + (_hasCaptain ? 20 : 0) + (_hasPhysician ? 15 : 0);
-    private int TotalDailyWages() => GuardDailyWages() + StaffDailyWages();
-    private int DailySupplyUse() => _guardCount <= 0 ? 0 : Math.Max(1, (_guardCount + 1) / 2) + ((_guardOrder ?? "watch") == "patrol" ? 1 : 0);
+    private int TotalDailyWages() => GuardDailyWages() + StationedDailyWages() + StaffDailyWages();
+    private int DailySupplyUse() => (_guardCount <= 0 ? 0 : Math.Max(1, (_guardCount + 1) / 2) + ((_guardOrder ?? "watch") == "patrol" ? 1 : 0)) + StationedSupplyUse();
     private int GuardOrderDefenseBonus() => (_guardOrder ?? "watch") switch { "patrol" => 20, "drill" => 5, _ => 12 };
     private TextObject GuardOrderDisplayName() => (_guardOrder ?? "watch") switch
     {

@@ -219,5 +219,33 @@
     <string id="ml_walk_no_project" text="目前没有在建工程。" />
     <string id="ml_walk_project" text="工匠们正忙于{PROJECT}。" />
     <string id="ml_walk_secure" text="庄园井然有序，安全无虞。" />
+    <string id="ml_btn_cannot_pay" text="解释你无力支付" />
+    <string id="ml_btn_pay" text="支付" />
+    <string id="ml_btn_refuse" text="拒绝" />
+    <string id="ml_dues_body" text="{LORD}派来的庄头来到{MANOR_NAME}，收取你这片土地的惯例地租：{AMOUNT} 第纳尔。&#xA;&#xA;缴纳可以与村庄的领主保持和睦。拒绝的话，对方不会忘记。" />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;庄园金库和你的钱袋都不足以支付。" />
+    <string id="ml_dues_title" text="领主的地租" />
+    <string id="ml_household_stationed" text="驻扎部队：{COUNT}/{CAP}（{WOUNDED} 人受伤），每天 {WAGES} 第纳尔。他们在训练场上操练，有医师时伤愈更快。" />
+    <string id="ml_household_stationed_none" text="此处没有驻扎部队。把士兵留在庄园，可以训练他们并让伤员康复。" />
+    <string id="ml_msg_dues_paid" text="你向{LORD}缴纳了 {AMOUNT} 第纳尔的地租。" />
+    <string id="ml_msg_dues_refused" text="{LORD}没有收到你的地租。你与对方的关系受损。" />
+    <string id="ml_msg_produce_sell" text="管家将出售庄园的产出。" />
+    <string id="ml_msg_produce_store" text="管家将把庄园的产出存入仓库。" />
+    <string id="ml_msg_stationed_deserted" text="一名未获薪饷的驻扎{TROOP}逃亡了。" />
+    <string id="ml_msg_stationed_lost" text="{KILLED} 名驻扎部队阵亡，{WOUNDED} 名受伤。" />
+    <string id="ml_msg_stationed_returned" text="你的驻扎部队回到了你的队伍。" />
+    <string id="ml_msg_village_grateful" text="{VILLAGE}的百姓感激你保卫了他们。" />
+    <string id="ml_opt_produce_sell" text="出售庄园产出以换取收入" />
+    <string id="ml_opt_produce_store" text="将庄园产出存入仓库" />
+    <string id="ml_opt_station" text="驻扎或带走部队（已驻扎 {COUNT}/{CAP}）" />
+    <string id="ml_produce_fallback" text="产出：仓库建成或修缮前暂停存储，期间产出将被出售。" />
+    <string id="ml_produce_selling" text="产出：出售，收入存入金库。" />
+    <string id="ml_produce_storing" text="产出：以货物形式存入仓库（{ITEMS}），每天价值约 {VALUE} 第纳尔。" />
+    <string id="ml_station_over_cap" text="庄园最多只能容纳 {CAP} 名驻扎部队。" />
+    <string id="ml_tip_produce_store" text="需要完好的仓库。" />
+    <string id="ml_tip_station_quarters" text="需要卫兵营房。" />
+    <string id="ml_village_dues" text="{LORD}预计在 {DAYS} 天后收取约 {AMOUNT} 第纳尔的地租（关系 {RELATION}）。" />
+    <string id="ml_village_no_dues" text="你的家族拥有这座村庄，因此无需缴纳地租。" />
+    <string id="ml_village_standing" text="庄园每天为{VILLAGE}增加 {HEARTHS} 户。当地名流对你的看法：{REGARD}。&#xA;{DUES}" />
   </strings>
 </base>

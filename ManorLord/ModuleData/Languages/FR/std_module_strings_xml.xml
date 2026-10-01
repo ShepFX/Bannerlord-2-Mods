@@ -218,5 +218,33 @@
     <string id="ml_walk_no_project" text="Aucun chantier n'est actuellement en cours." />
     <string id="ml_walk_project" text="Les ouvriers s'affairent à {PROJECT}." />
     <string id="ml_walk_secure" text="Le domaine est ordonné et sûr." />
+    <string id="ml_btn_cannot_pay" text="Expliquer que vous ne pouvez pas payer" />
+    <string id="ml_btn_pay" text="Payer" />
+    <string id="ml_btn_refuse" text="Refuser" />
+    <string id="ml_dues_body" text="Un bailli de {LORD} arrive à {MANOR_NAME} pour percevoir les redevances coutumières sur votre terre : {AMOUNT} deniers.&#xA;&#xA;Payer maintient la paix avec le seigneur du village. Un refus ne sera pas oublié." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;Ni le trésor du manoir ni votre bourse ne peuvent couvrir cette somme." />
+    <string id="ml_dues_title" text="Les redevances du seigneur" />
+    <string id="ml_household_stationed" text="Troupes stationnées : {COUNT}/{CAP} ({WOUNDED} blessés), {WAGES} deniers par jour. Elles s'entraînent sur le terrain d'entraînement et guérissent plus vite avec un médecin." />
+    <string id="ml_household_stationed_none" text="Aucune troupe n'est stationnée ici. Laissez des soldats au manoir pour les entraîner et permettre aux blessés de se rétablir." />
+    <string id="ml_msg_dues_paid" text="Vous avez payé {AMOUNT} deniers de redevances à {LORD}." />
+    <string id="ml_msg_dues_refused" text="{LORD} n'a reçu aucune redevance de votre part. Votre relation en pâtit." />
+    <string id="ml_msg_produce_sell" text="L'intendant vendra la production du domaine." />
+    <string id="ml_msg_produce_store" text="L'intendant entreposera la production du domaine." />
+    <string id="ml_msg_stationed_deserted" text="Un soldat stationné impayé ({TROOP}) a déserté." />
+    <string id="ml_msg_stationed_lost" text="{KILLED} soldats stationnés ont été tués et {WOUNDED} blessés." />
+    <string id="ml_msg_stationed_returned" text="Vos troupes stationnées rejoignent votre groupe." />
+    <string id="ml_msg_village_grateful" text="Les gens de {VILLAGE} vous sont reconnaissants de les avoir défendus." />
+    <string id="ml_opt_produce_sell" text="Vendre la production du domaine" />
+    <string id="ml_opt_produce_store" text="Entreposer la production du domaine" />
+    <string id="ml_opt_station" text="Stationner ou reprendre des troupes ({COUNT}/{CAP} stationnées)" />
+    <string id="ml_produce_fallback" text="Production : l'entreposage est suspendu jusqu'à ce que l'entrepôt soit construit ou réparé ; elle est vendue en attendant." />
+    <string id="ml_produce_selling" text="Production : vendue, le revenu étant versé au trésor." />
+    <string id="ml_produce_storing" text="Production : entreposée sous forme de marchandises ({ITEMS}), pour environ {VALUE} deniers par jour." />
+    <string id="ml_station_over_cap" text="Le manoir ne peut loger que {CAP} soldats stationnés." />
+    <string id="ml_tip_produce_store" text="Nécessite un entrepôt intact." />
+    <string id="ml_tip_station_quarters" text="Nécessite un corps de garde." />
+    <string id="ml_village_dues" text="{LORD} attend environ {AMOUNT} deniers de redevances dans {DAYS} jours (relation {RELATION})." />
+    <string id="ml_village_no_dues" text="Votre clan détient le village : aucune redevance n'est due." />
+    <string id="ml_village_standing" text="Le domaine ajoute {HEARTHS} foyers par jour à {VILLAGE}. Estime des notables à votre égard : {REGARD}.&#xA;{DUES}" />
   </strings>
 </base>

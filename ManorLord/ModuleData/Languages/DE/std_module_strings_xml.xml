@@ -218,5 +218,33 @@
     <string id="ml_walk_no_project" text="Derzeit wird nicht gebaut." />
     <string id="ml_walk_project" text="Die Arbeiter sind mit {PROJECT} beschäftigt." />
     <string id="ml_walk_secure" text="Das Gut ist wohlgeordnet und sicher." />
+    <string id="ml_btn_cannot_pay" text="Erklären, dass Ihr nicht zahlen könnt" />
+    <string id="ml_btn_pay" text="Zahlen" />
+    <string id="ml_btn_refuse" text="Ablehnen" />
+    <string id="ml_dues_body" text="Ein Vogt von {LORD} kommt nach {MANOR_NAME}, um die üblichen Abgaben für Euer Land einzuziehen: {AMOUNT} Denare.&#xA;&#xA;Wer zahlt, wahrt den Frieden mit dem Herrn des Dorfes. Eine Weigerung wird man nicht vergessen." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;Weder die Gutskasse noch Euer Beutel kann das decken." />
+    <string id="ml_dues_title" text="Die Abgaben des Herrn" />
+    <string id="ml_household_stationed" text="Stationierte Truppen: {COUNT}/{CAP} ({WOUNDED} verwundet), {WAGES} Denare am Tag. Sie üben auf dem Übungsplatz und genesen mit einem Arzt schneller." />
+    <string id="ml_household_stationed_none" text="Hier sind keine Truppen stationiert. Lasst Soldaten auf dem Gut, um sie auszubilden und Verwundete genesen zu lassen." />
+    <string id="ml_msg_dues_paid" text="Ihr habt {LORD} {AMOUNT} Denare an Abgaben gezahlt." />
+    <string id="ml_msg_dues_refused" text="{LORD} hat von Euch keine Abgaben erhalten. Eure Beziehung leidet darunter." />
+    <string id="ml_msg_produce_sell" text="Der Verwalter wird die Erzeugnisse des Guts verkaufen." />
+    <string id="ml_msg_produce_store" text="Der Verwalter wird die Erzeugnisse des Guts im Lagerhaus einlagern." />
+    <string id="ml_msg_stationed_deserted" text="Ein unbezahlter stationierter Soldat ({TROOP}) ist desertiert." />
+    <string id="ml_msg_stationed_lost" text="{KILLED} stationierte Soldaten fielen, {WOUNDED} wurden verwundet." />
+    <string id="ml_msg_stationed_returned" text="Eure stationierten Truppen kehren zu Eurer Gruppe zurück." />
+    <string id="ml_msg_village_grateful" text="Die Leute von {VILLAGE} sind Euch dankbar, dass Ihr sie verteidigt habt." />
+    <string id="ml_opt_produce_sell" text="Die Erzeugnisse des Guts verkaufen" />
+    <string id="ml_opt_produce_store" text="Die Erzeugnisse des Guts im Lagerhaus einlagern" />
+    <string id="ml_opt_station" text="Truppen stationieren oder abholen ({COUNT}/{CAP} stationiert)" />
+    <string id="ml_produce_fallback" text="Erzeugnisse: Die Einlagerung ruht, bis das Lagerhaus gebaut oder repariert ist; bis dahin wird verkauft." />
+    <string id="ml_produce_selling" text="Erzeugnisse: verkauft, der Erlös fließt in die Kasse." />
+    <string id="ml_produce_storing" text="Erzeugnisse: als Waren im Lagerhaus eingelagert ({ITEMS}), im Wert von etwa {VALUE} Denaren am Tag." />
+    <string id="ml_station_over_cap" text="Das Gut kann nur {CAP} stationierte Soldaten beherbergen." />
+    <string id="ml_tip_produce_store" text="Erfordert ein unbeschädigtes Lagerhaus." />
+    <string id="ml_tip_station_quarters" text="Erfordert eine Wachunterkunft." />
+    <string id="ml_village_dues" text="{LORD} erwartet in {DAYS} Tagen etwa {AMOUNT} Denare an Abgaben (Beziehung {RELATION})." />
+    <string id="ml_village_no_dues" text="Euer Clan hält das Dorf, also sind keine Abgaben fällig." />
+    <string id="ml_village_standing" text="Das Gut lässt {VILLAGE} um {HEARTHS} Feuerstellen am Tag wachsen. Das Ansehen bei den Honoratioren: {REGARD}.&#xA;{DUES}" />
   </strings>
 </base>

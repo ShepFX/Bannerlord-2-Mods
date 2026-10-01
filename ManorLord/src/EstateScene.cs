@@ -23,6 +23,8 @@ internal sealed class EstateSnapshot
     public int GuardCount;
     public CharacterObject? GuardTroop;
     public CharacterObject? StaffTroop;
+    /// <summary>Healthy stationed troops to stand in the yard, one entry per soldier.</summary>
+    public List<CharacterObject> Stationed = new();
 
     /// <summary>Resolves a prop's <c>when</c> condition against the estate state.</summary>
     public bool Satisfies(string when) => when switch
@@ -523,6 +525,9 @@ public sealed class ManorEstateSceneBehavior : MissionBehavior
         {
             switch (spawn.Role)
             {
+                case "stationed":
+                    SpawnRanks(team, _estate.Stationed, spawn, false);
+                    break;
                 case "guards":
                     if (_estate.GuardTroop != null && _estate.GuardCount > 0)
                         SpawnFormation(team, _estate.GuardTroop, Math.Min(12, _estate.GuardCount), spawn, false);
@@ -543,6 +548,16 @@ public sealed class ManorEstateSceneBehavior : MissionBehavior
     /// <summary>Stands <paramref name="count"/> agents in ranks of four, facing the spawn's yaw.</summary>
     private void SpawnFormation(Team team, CharacterObject troop, int count, ManorSpawn spawn, bool civilian)
     {
+        var troops = new List<CharacterObject>();
+        for (int i = 0; i < count; i++) troops.Add(troop);
+        SpawnRanks(team, troops, spawn, civilian);
+    }
+
+    /// <summary>Stands each troop in the list in ranks of four behind the spawn point, facing its yaw.</summary>
+    private void SpawnRanks(Team team, IReadOnlyList<CharacterObject> troops, ManorSpawn spawn, bool civilian)
+    {
+        int count = troops.Count;
+        if (count == 0) return;
         MatrixFrame anchor = GroundFrame(spawn.X, spawn.Y, spawn.YawDegrees, 0f);
         Vec2 forward = anchor.rotation.f.AsVec2;
         if (forward.LengthSquared < 0.1f) forward = new Vec2(0f, 1f);
@@ -551,6 +566,7 @@ public sealed class ManorEstateSceneBehavior : MissionBehavior
 
         for (int i = 0; i < count; i++)
         {
+            CharacterObject troop = troops[i];
             int row = i / 4;
             int column = i % 4;
             float sideOffset = (Math.Min(count, 4) == 1 ? 0f : column - 1.5f) * 1.8f;

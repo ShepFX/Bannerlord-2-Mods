@@ -218,5 +218,33 @@
     <string id="ml_walk_no_project" text="Şu anda süren bir inşaat yok." />
     <string id="ml_walk_project" text="İşçiler {PROJECT} ile meşgul." />
     <string id="ml_walk_secure" text="Malikâne düzenli ve güvenli." />
+    <string id="ml_btn_cannot_pay" text="Ödeyemeyeceğini açıkla" />
+    <string id="ml_btn_pay" text="Öde" />
+    <string id="ml_btn_refuse" text="Reddet" />
+    <string id="ml_dues_body" text="{LORD} adına bir kâhya, toprağının âdet olan vergisini almak için {MANOR_NAME} malikânesine geldi: {AMOUNT} dinar.&#xA;&#xA;Ödemek köyün beyiyle arayı iyi tutar. Reddetmek unutulmaz." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;Ne malikâne kasası ne de kesen bunu karşılayabilir." />
+    <string id="ml_dues_title" text="Beyin Vergisi" />
+    <string id="ml_household_stationed" text="Konuşlu askerler: {COUNT}/{CAP} ({WOUNDED} yaralı), günde {WAGES} dinar. Talim alanında eğitilirler ve hekim varken daha çabuk iyileşirler." />
+    <string id="ml_household_stationed_none" text="Burada konuşlu asker yok. Askerleri eğitmek ve yaralıları iyileştirmek için malikânede bırak." />
+    <string id="ml_msg_dues_paid" text="{LORD} beyine {AMOUNT} dinar vergi ödedin." />
+    <string id="ml_msg_dues_refused" text="{LORD} senden vergi alamadı. Aranız bozuluyor." />
+    <string id="ml_msg_produce_sell" text="Kâhya malikânenin ürünlerini satacak." />
+    <string id="ml_msg_produce_store" text="Kâhya malikânenin ürünlerini ambara koyacak." />
+    <string id="ml_msg_stationed_deserted" text="Ücreti ödenmeyen konuşlu bir asker ({TROOP}) firar etti." />
+    <string id="ml_msg_stationed_lost" text="Konuşlu askerlerden {KILLED} kişi öldü, {WOUNDED} kişi yaralandı." />
+    <string id="ml_msg_stationed_returned" text="Konuşlu askerlerin birliğine geri dönüyor." />
+    <string id="ml_msg_village_grateful" text="{VILLAGE} halkı onları savunduğun için sana minnettar." />
+    <string id="ml_opt_produce_sell" text="Malikânenin ürünlerini gelir için sat" />
+    <string id="ml_opt_produce_store" text="Malikânenin ürünlerini ambara koy" />
+    <string id="ml_opt_station" text="Asker konuşlandır ya da geri al ({COUNT}/{CAP} konuşlu)" />
+    <string id="ml_produce_fallback" text="Ürünler: ambar inşa edilene ya da onarılana dek depolama durdu; bu arada satılıyor." />
+    <string id="ml_produce_selling" text="Ürünler: satılıyor, gelir kasaya gidiyor." />
+    <string id="ml_produce_storing" text="Ürünler: ambarda mal olarak saklanıyor ({ITEMS}), günde yaklaşık {VALUE} dinar değerinde." />
+    <string id="ml_station_over_cap" text="Malikâne en fazla {CAP} konuşlu asker barındırabilir." />
+    <string id="ml_tip_produce_store" text="Hasarsız bir ambar gerekir." />
+    <string id="ml_tip_station_quarters" text="Muhafız koğuşu gerekir." />
+    <string id="ml_village_dues" text="{LORD} {DAYS} gün içinde yaklaşık {AMOUNT} dinar vergi bekliyor (ilişki {RELATION})." />
+    <string id="ml_village_no_dues" text="Köy senin klanına ait, bu yüzden vergi borcun yok." />
+    <string id="ml_village_standing" text="Malikâne {VILLAGE} köyüne günde {HEARTHS} hane katıyor. Eşrafın sana bakışı: {REGARD}.&#xA;{DUES}" />
   </strings>
 </base>

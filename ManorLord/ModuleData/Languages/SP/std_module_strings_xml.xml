@@ -218,5 +218,33 @@
     <string id="ml_walk_no_project" text="Por ahora no hay ninguna obra en marcha." />
     <string id="ml_walk_project" text="Los obreros se afanan en {PROJECT}." />
     <string id="ml_walk_secure" text="La hacienda está ordenada y segura." />
+    <string id="ml_btn_cannot_pay" text="Explicar que no podéis pagar" />
+    <string id="ml_btn_pay" text="Pagar" />
+    <string id="ml_btn_refuse" text="Negarse" />
+    <string id="ml_dues_body" text="Un mayordomo de {LORD} llega a {MANOR_NAME} para cobrar los tributos acostumbrados por vuestra tierra: {AMOUNT} denarios.&#xA;&#xA;Pagar mantiene la paz con el señor de la aldea. Negarse no se olvidará." />
+    <string id="ml_dues_cannot_pay" text="{BODY}&#xA;&#xA;Ni el tesoro de la casa solariega ni vuestra bolsa pueden cubrirlo." />
+    <string id="ml_dues_title" text="El tributo del señor" />
+    <string id="ml_household_stationed" text="Tropas acuarteladas: {COUNT}/{CAP} ({WOUNDED} heridos), {WAGES} denarios al día. Se adiestran en el campo de entrenamiento y sanan antes con un médico." />
+    <string id="ml_household_stationed_none" text="No hay tropas acuarteladas aquí. Dejad soldados en la casa solariega para adiestrarlos y que los heridos se recuperen." />
+    <string id="ml_msg_dues_paid" text="Habéis pagado {AMOUNT} denarios de tributo a {LORD}." />
+    <string id="ml_msg_dues_refused" text="{LORD} no ha recibido tributo de vos. Vuestra relación se resiente." />
+    <string id="ml_msg_produce_sell" text="El administrador venderá la producción de la hacienda." />
+    <string id="ml_msg_produce_store" text="El administrador guardará la producción de la hacienda en el almacén." />
+    <string id="ml_msg_stationed_deserted" text="Un soldado acuartelado sin paga ({TROOP}) ha desertado." />
+    <string id="ml_msg_stationed_lost" text="Murieron {KILLED} soldados acuartelados y {WOUNDED} resultaron heridos." />
+    <string id="ml_msg_stationed_returned" text="Vuestras tropas acuarteladas vuelven a vuestro grupo." />
+    <string id="ml_msg_village_grateful" text="La gente de {VILLAGE} os agradece que la defendierais." />
+    <string id="ml_opt_produce_sell" text="Vender la producción de la hacienda" />
+    <string id="ml_opt_produce_store" text="Guardar la producción de la hacienda en el almacén" />
+    <string id="ml_opt_station" text="Acuartelar o recoger tropas ({COUNT}/{CAP} acuarteladas)" />
+    <string id="ml_produce_fallback" text="Producción: el almacenaje queda en pausa hasta que se construya o repare el almacén; mientras tanto se vende." />
+    <string id="ml_produce_selling" text="Producción: se vende y la renta va al tesoro." />
+    <string id="ml_produce_storing" text="Producción: se guarda como mercancías en el almacén ({ITEMS}), por valor de unos {VALUE} denarios al día." />
+    <string id="ml_station_over_cap" text="La casa solariega solo puede alojar {CAP} soldados acuartelados." />
+    <string id="ml_tip_produce_store" text="Requiere un almacén intacto." />
+    <string id="ml_tip_station_quarters" text="Requiere un cuartel de la guardia." />
+    <string id="ml_village_dues" text="{LORD} espera unos {AMOUNT} denarios de tributo dentro de {DAYS} días (relación {RELATION})." />
+    <string id="ml_village_no_dues" text="Vuestro clan posee la aldea, así que no se debe tributo." />
+    <string id="ml_village_standing" text="La hacienda añade {HEARTHS} hogares al día a {VILLAGE}. Estima de sus notables hacia vos: {REGARD}.&#xA;{DUES}" />
   </strings>
 </base>
