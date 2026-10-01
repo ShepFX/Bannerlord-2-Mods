@@ -16,8 +16,12 @@ public sealed class SubModule : MBSubModuleBase
     protected override void OnSubModuleLoad()
     {
         base.OnSubModuleLoad();
-        if (FortificationSettings.Load().Debug)
+        FortificationSettings settings = FortificationSettings.Load();
+        if (settings.Debug)
+        {
             AppDomain.CurrentDomain.FirstChanceException += TraceException;
+            ErrorLog.Debug($"Loaded. ai_fortifications={settings.AiFortifications} ai_test={settings.AiTest} ai_scale={settings.AiScale}.");
+        }
         try
         {
             SiegeAiPatches.Apply(new Harmony("FieldFortifications"));
@@ -53,8 +57,9 @@ public sealed class SubModule : MBSubModuleBase
     public override void OnMissionBehaviorInitialize(Mission mission)
     {
         base.OnMissionBehaviorInitialize(mission);
-        // The flags stay set until the map event ends, so a battle fought in several rounds keeps its works.
-        if (FortificationState.AnyPending)
-            mission.AddMissionBehavior(new FortificationMissionBehavior());
+        // Always attached: what the player bought is known by now, but the defender's works may only be decided
+        // once the battle itself starts, which can happen after this runs. The behaviour bows out on its own when
+        // there is nothing to build.
+        mission.AddMissionBehavior(new FortificationMissionBehavior());
     }
 }

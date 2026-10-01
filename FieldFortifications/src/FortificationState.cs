@@ -14,7 +14,30 @@ public static class FortificationState
     /// <summary>Denars paid this encounter, for the summary and the refund.</summary>
     public static int Spent;
 
+    /// <summary>
+    /// Works the defending AI lord has dug in for the current encounter, and whether that has been worked out yet.
+    /// Only filled when the player is attacking a lord in the field.
+    /// </summary>
+    public static readonly int[] Enemy = new int[WorkCount];
+
+    /// <summary>
+    /// Which enemy the works above were decided for. A plain "decided" flag could survive in a save and then block
+    /// every later battle, so the decision is keyed to the enemy it was made against.
+    /// </summary>
+    public static string EnemyDecidedFor = "";
+
     public static int Count(Work work) => Bought[(int)work];
+
+    public static int EnemyCount(Work work) => Enemy[(int)work];
+
+    public static bool EnemyAnyPending
+    {
+        get
+        {
+            foreach (int n in Enemy) if (n > 0) return true;
+            return false;
+        }
+    }
 
     public static bool AnyPending
     {
@@ -28,6 +51,8 @@ public static class FortificationState
     public static void Clear()
     {
         Array.Clear(Bought, 0, Bought.Length);
+        Array.Clear(Enemy, 0, Enemy.Length);
+        EnemyDecidedFor = "";
         Spent = 0;
     }
 
@@ -71,6 +96,16 @@ public static class FortificationState
 
     /// <summary>Seconds a mangonel may sit waiting for a crew to reload before it reloads itself.</summary>
     public const float AutoReloadSeconds = 8f;
+
+    /// <summary>
+    /// How flat ground must be to carry a work: the upward part of the terrain normal, so 0.86 is about thirty
+    /// degrees. Steeper than this and men slide off it and props sit in the air.
+    /// </summary>
+    public const float MinGroundFlatness = 0.86f;
+
+    /// <summary>How far back toward its owner a work may be pulled to find ground men can reach, and in what steps.</summary>
+    public const float MaxGroundSearch = 40f;
+    public const float GroundSearchStep = 4f;
 
     /// <summary>Metres beyond the outermost barricade where an engine sits by default.</summary>
     public const float EngineFlankOffset = 10f;

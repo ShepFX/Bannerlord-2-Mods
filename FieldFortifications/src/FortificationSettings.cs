@@ -30,6 +30,18 @@ public sealed class FortificationSettings
     /// <summary>Engineering experience the engineer gains per 1,000 denars of works bought.</summary>
     public float EngineeringXpPer1000 = 50f;
 
+    /// <summary>Let a defending AI lord dig in when the player attacks him in the field.</summary>
+    public bool AiFortifications = true;
+
+    /// <summary>Scales how much a defending AI lord builds. 0.5 is half as much, 2 twice as much.</summary>
+    public float AiScale = 1f;
+
+    /// <summary>
+    /// Testing only: every AI enemy in a field battle builds a full set, whatever its leader's Engineering or purse,
+    /// bandits included, and whether it is attacking or defending.
+    /// </summary>
+    public bool AiTest;
+
     /// <summary>Engineering needed for the next copy of a work, given how many are already bought.</summary>
     public int Required(FortificationState.Work work, int alreadyBought) =>
         Math.Max(0, EngineeringRequired[(int)work] + EngineeringStep * alreadyBought);
@@ -107,6 +119,11 @@ public sealed class FortificationSettings
                     case "eng_arrows": settings.EngineeringRequired[3] = Int(settings.EngineeringRequired[3]); break;
                     case "eng_platform": settings.EngineeringRequired[4] = Int(settings.EngineeringRequired[4]); break;
                     case "eng_step": settings.EngineeringStep = Int(settings.EngineeringStep); break;
+                    case "ai_fortifications": settings.AiFortifications = Flag(); break;
+                    case "ai_test": settings.AiTest = Flag(); break;
+                    case "ai_scale":
+                        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float scale) && scale >= 0f && scale <= 10f) settings.AiScale = scale;
+                        break;
                     case "eng_xp_per_1000":
                         if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out float xp) && xp >= 0f) settings.EngineeringXpPer1000 = xp;
                         break;
@@ -144,5 +161,16 @@ public static class ErrorLog
     {
         try { File.AppendAllText(Path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " " + text + Environment.NewLine); }
         catch { /* logging must never break the game */ }
+    }
+
+    /// <summary>Only written when debug=1 in settings.txt; for working out why something did or did not happen.</summary>
+    public static void Debug(string text)
+    {
+        try
+        {
+            string path = System.IO.Path.Combine(BasePath.Name, "Modules", "FieldFortifications", "debug.txt");
+            File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " " + text + Environment.NewLine);
+        }
+        catch { /* diagnostics only */ }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using TaleWorlds.CampaignSystem;
@@ -48,16 +49,27 @@ public sealed class FortificationCampaignBehavior : CampaignBehaviorBase
     {
         CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
         CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+        // Backstop: the defender still digs in when the player attacks without opening the fortify menu.
+        CampaignEvents.MapEventStarted.AddNonSerializedListener(this, (mapEvent, attacker, defender) =>
+        {
+            if (mapEvent.IsPlayerMapEvent) EnsureEnemyDecided();
+        });
     }
 
     public override void SyncData(IDataStore store)
     {
         int[] bought = (int[])FortificationState.Bought.Clone();
+        int[] enemy = (int[])FortificationState.Enemy.Clone();
         int spent = FortificationState.Spent;
+        string decided = FortificationState.EnemyDecidedFor;
         for (int i = 0; i < bought.Length; i++) store.SyncData("ff_bought_" + i, ref bought[i]);
+        for (int i = 0; i < enemy.Length; i++) store.SyncData("ff_enemy_" + i, ref enemy[i]);
         store.SyncData("ff_spent", ref spent);
+        store.SyncData("ff_enemy_decided_for", ref decided);
         for (int i = 0; i < bought.Length; i++) FortificationState.Bought[i] = bought[i];
+        for (int i = 0; i < enemy.Length; i++) FortificationState.Enemy[i] = enemy[i];
         FortificationState.Spent = spent;
+        FortificationState.EnemyDecidedFor = decided ?? "";
     }
 
     private void OnSessionLaunched(CampaignGameStarter starter)
@@ -68,16 +80,18 @@ public sealed class FortificationCampaignBehavior : CampaignBehaviorBase
             args =>
             {
                 if (CurrentFieldBattle() == null) return false;
+                EnsureEnemyDecided();
                 args.optionLeaveType = GameMenuOption.LeaveType.Submenu;
-                args.Tooltip = new TextObject("{=ff_tip_open}Pay your men to raise barricades, set up engines, stock arrows and build a platform before the battle. {SUMMARY}")
-                    .SetTextVariable("SUMMARY", Summary());
+                args.Tooltip = new TextObject("{=ff_tip_open}Pay your men to raise barricades, set up engines, stock arrows and build a platform before the battle. {SUMMARY} {ENEMY}")
+                    .SetTextVariable("SUMMARY", Summary())
+                    .SetTextVariable("ENEMY", EnemySummary());
                 return true;
             },
             args => GameMenu.SwitchToMenu(FortifyMenu),
             false, 1, false, null);
 
         starter.AddGameMenu(FortifyMenu,
-            "{=ff_menu_body}Your men can throw up works before the battle. Each one is placed by you during deployment, and every extra copy of a work costs more and needs a better engineer than the last.{newline} {newline}{FF_ENGINEER}{newline}{FF_SUMMARY}",
+            "{=ff_menu_body}Your men can throw up works before the battle. Each one is placed by you during deployment, and every extra copy of a work costs more and needs a better engineer than the last.{newline} {newline}{FF_ENGINEER}{newline}{FF_SUMMARY}{newline}{FF_ENEMY}",
             args =>
             {
                 if (CurrentFieldBattle() == null)
@@ -184,6 +198,7 @@ public sealed class FortificationCampaignBehavior : CampaignBehaviorBase
             .SetTextVariable("NAME", best.Name).SetTextVariable("SKILL", bestSkill), false);
         MBTextManager.SetTextVariable("FF_SPENT", Denars(FortificationState.Spent));
         MBTextManager.SetTextVariable("FF_SUMMARY", Summary(), false);
+        MBTextManager.SetTextVariable("FF_ENEMY", EnemySummary(), false);
     }
 
     private static TextObject Summary()
@@ -201,6 +216,90 @@ public sealed class FortificationCampaignBehavior : CampaignBehaviorBase
             .SetTextVariable("LIST", string.Join(", ", parts))
             .SetTextVariable("SPENT", Denars(FortificationState.Spent))
             .SetTextVariable("GOLD", Denars(Hero.MainHero.Gold));
+    }
+
+    /// <summary>
+    /// Works out once per encounter what the defending lord has dug in. A lord only fortifies when he is holding
+    /// ground against the player: his Engineering decides what his men know how to build, and his purse decides how
+    /// much of it he can pay for, obstacles first. Nothing is deducted from him; the purse is only a limit.
+    /// </summary>
+    /// <summary>
+    /// Asks the campaign to work out the defender's works if it has not already. The mission calls this because the
+    /// battle-start event can fire after the mission's behaviours are created.
+    /// </summary>
+    public static void EnsureDecided()
+    {
+        try { Campaign.Current?.GetCampaignBehavior<FortificationCampaignBehavior>()?.EnsureEnemyDecided(); }
+        catch (Exception ex) { ErrorLog.Write("Deciding the defender works failed: " + ex); }
+    }
+
+    private void EnsureEnemyDecided()
+    {
+        MapEvent? battle = CurrentFieldBattle();
+        if (battle == null) return;
+        _settings = FortificationSettings.Load();
+
+        bool test = _settings.AiTest;
+        BattleSideEnum enemySide = battle.PlayerSide == BattleSideEnum.Attacker ? BattleSideEnum.Defender : BattleSideEnum.Attacker;
+        PartyBase? enemyParty = battle.GetMapEventSide(enemySide)?.LeaderParty;
+        string key = enemySide + ":" + (enemyParty?.Name?.ToString() ?? "unknown");
+        if (FortificationState.EnemyDecidedFor == key)
+        {
+            if (_settings.Debug) ErrorLog.Debug("Defender works: already decided for " + key + ".");
+            return;
+        }
+        FortificationState.EnemyDecidedFor = key;
+        Array.Clear(FortificationState.Enemy, 0, FortificationState.Enemy.Length);
+        if (!_settings.AiFortifications || _settings.AiScale <= 0f)
+        {
+            if (_settings.Debug) ErrorLog.Debug("Defender works: turned off in settings.");
+            return;
+        }
+        // Normally only a lord holding ground against the player digs in; the test switch lets anyone build.
+        if (!test && enemySide != BattleSideEnum.Defender)
+        {
+            if (_settings.Debug) ErrorLog.Debug("Defender works: the player is not attacking, so nobody digs in.");
+            return;
+        }
+        Hero? defender = enemyParty?.LeaderHero;
+        if (defender == Hero.MainHero) return;
+        if (!test && (defender == null || defender.Clan == Clan.PlayerClan)) return;
+
+        int skill = test ? int.MaxValue : defender!.GetSkillValue(DefaultSkills.Engineering);
+        int purse = test ? int.MaxValue : defender!.Gold;
+        foreach (WorkInfo info in Works)
+        {
+            // The platform is the player's own trick; a lord in the field does not raise one.
+            if (info.Work == Work.Tower) continue;
+            int max = (int)Math.Round(_settings.Max(info.Work) * _settings.AiScale);
+            int count = 0;
+            while (count < max && skill >= _settings.Required(info.Work, count))
+            {
+                int price = _settings.Price(info.Work, count);
+                if (purse < price) break;
+                purse -= price;
+                count++;
+            }
+            FortificationState.Enemy[(int)info.Work] = count;
+        }
+        if (_settings.Debug)
+            ErrorLog.Debug($"Defender works decided: test={test} side={enemySide} leader={(defender != null ? defender.Name.ToString() : "none")} " +
+                           $"skill={(test ? -1 : skill)} purse={(test ? -1 : purse)} -> [{string.Join(",", FortificationState.Enemy)}]");
+    }
+
+    /// <summary>What the player's scouts can tell him about the enemy's works.</summary>
+    private static TextObject EnemySummary()
+    {
+        if (!FortificationState.EnemyAnyPending) return new TextObject("");
+        var parts = new List<string>();
+        foreach (WorkInfo info in Works)
+        {
+            int have = FortificationState.EnemyCount(info.Work);
+            if (have == 1) parts.Add("1 " + info.Name);
+            else if (have > 1) parts.Add(have + " " + info.Plural);
+        }
+        return new TextObject("{=ff_enemy_dug_in}Your scouts report the enemy has dug in: {LIST}.")
+            .SetTextVariable("LIST", string.Join(", ", parts));
     }
 
     private static string Denars(int amount) => amount.ToString("N0", CultureInfo.InvariantCulture);

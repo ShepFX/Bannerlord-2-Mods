@@ -2,7 +2,7 @@
 <Module>
   <Name value="Field Fortifications"/>
   <Id value="FieldFortifications"/>
-  <Version value="v1.3.0"/>
+  <Version value="v1.4.0"/>
   <ModuleCategory value="Singleplayer"/>
   <ModuleType value="Community"/>
   <DependedModules>

@@ -1,3 +1,10 @@
+v1.4.0
+- Defending lords now fortify against you. Attack a lord holding ground in the field and he digs in: his Engineering decides what his men can build, his purse how much of it, obstacles first. His barricades stop your men and impale your horses, and his archers crew his engines.
+- Your scouts report what he has built before you commit, in the fortify menu and its tooltip.
+- Lords never build the archer platform, and parties without a proper commander never fortify. Turn it off with ai_fortifications=0 or scale it with ai_scale.
+- Engines now keep asking their owner for a crew until one arrives, instead of asking once. An army that has not formed up yet, which is the usual case for the enemy, no longer leaves its engines standing idle, and your own engines recover when their crew is killed.
+- Works are only placed on ground that is flat enough, on the navigation mesh, and connected by a walkable path to the army that owns them, so nothing is built on a cliff or across a ravine where nobody can reach it.
+
 v1.3.0
 - Engineering requirements: each work needs an engineer of a certain level, and every further copy needs more (eng_* and eng_step in settings.txt). The menu shows the level next to the price and says who your engineer is.
 - Companion engineers: the highest Engineering in your party counts, so a companion can do the engineering for you.

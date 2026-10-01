@@ -30,6 +30,18 @@ public sealed class FortificationMissionBehavior : MissionBehavior
     private readonly List<Barricade> _barricades = new();
     private readonly Dictionary<int, float> _spikeCooldown = new();
     private readonly List<RangedSiegeWeapon> _engines = new();
+    private readonly List<CrewRequest> _crewPending = new();
+    private float _reportAt = -1f;
+
+    /// <summary>An engine waiting for its owner to have men to spare.</summary>
+    private sealed class CrewRequest
+    {
+        public RangedSiegeWeapon Weapon = null!;
+        public Team Team = null!;
+        public Formation? Joined;
+        public float NextTry;
+        public float GiveUpAt;
+    }
     private readonly List<(Agent horse, float damage, Vec2 velocity)> _spikeHits = new();
     private int _tickFaults;
     private readonly Dictionary<RangedSiegeWeapon, float> _reloadStuckSince = new();
@@ -54,6 +66,8 @@ public sealed class FortificationMissionBehavior : MissionBehavior
             {
                 if (_barricades.Count > 0) TickSpikes();
                 if (_engines.Count > 0) TickAutoReload();
+                if (_crewPending.Count > 0) TickCrew();
+                if (_reportAt > 0f && Mission.CurrentTime >= _reportAt) ReportEngines();
             }
             catch (Exception ex)
             {
@@ -86,10 +100,19 @@ public sealed class FortificationMissionBehavior : MissionBehavior
     private void Initialise()
     {
         Mission mission = Mission;
+        if (!mission.IsFieldBattle)
+        {
+            _initialised = true;
+            _spawned = true;
+            return;
+        }
         Team? player = mission.PlayerTeam;
         if (player == null) return;
         if (!mission.DeploymentPlan.IsPlanMade(player)) return;
-        if (!mission.IsFieldBattle)
+
+        // The defender's works may not have been worked out yet when this mission was created.
+        FortificationCampaignBehavior.EnsureDecided();
+        if (!FortificationState.AnyPending && !FortificationState.EnemyAnyPending)
         {
             _initialised = true;
             _spawned = true;
@@ -101,6 +124,8 @@ public sealed class FortificationMissionBehavior : MissionBehavior
         _initialised = true;
 
         _settings = FortificationSettings.Load();
+        if (_settings.Debug)
+            ErrorLog.Debug($"Mission ready: scene {mission.SceneName}, mine [{string.Join(",", FortificationState.Bought)}], theirs [{string.Join(",", FortificationState.Enemy)}].");
         FortificationSettings.Current = _settings;
         SiegeAiPatches.BarrelPoints.Clear();
         Vec2 forward = direction.Normalized();
@@ -165,7 +190,7 @@ public sealed class FortificationMissionBehavior : MissionBehavior
             SpawnAll();
             return;
         }
-        _placement.ShowPanel();
+        if (_placement.Items.Count > 0) _placement.ShowPanel();
     }
 
     private static string Numbered(string name, int index, int total) => total > 1 ? name + " " + (index + 1) : name;
@@ -178,6 +203,7 @@ public sealed class FortificationMissionBehavior : MissionBehavior
         Team? player = mission.PlayerTeam;
         PlacementController? placement = _placement;
         _placement = null;
+        BuildEnemyWorks(mission);
         if (placement == null || player == null) return;
         placement.Dispose();
 
@@ -215,6 +241,172 @@ public sealed class FortificationMissionBehavior : MissionBehavior
                     break;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Ground a work can stand on and men can get to: flat enough, on the navigation mesh, and joined by a walkable
+    /// path to where its owner's troops start. A mountainside or the far bank of a ravine fails all three.
+    /// </summary>
+    private static bool IsUsableGround(Mission mission, Team owner, Vec2 from, Vec2 at, bool keepOutsideBoundary)
+    {
+        try
+        {
+            Scene scene = mission.Scene;
+            float z = scene.GetGroundHeightAtPosition(at.ToVec3(1000f), out Vec3 normal, BodyFlags.CommonCollisionExcludeFlagsForAgent);
+            if (normal.z < FortificationState.MinGroundFlatness) return false;
+
+            Vec3 point = at.ToVec3(z);
+            PathFaceRecord record = PathFaceRecord.NullFaceRecord;
+            scene.GetNavMeshFaceIndex(ref record, point, true);
+            if (!record.IsValid()) return false;
+
+            IMissionDeploymentPlan plan = mission.DeploymentPlan;
+            if (keepOutsideBoundary && plan.HasDeploymentBoundaries(owner) && plan.IsPositionInsideDeploymentBoundaries(owner, in at)) return false;
+
+            var start = new WorldPosition(scene, from.ToVec3(scene.GetGroundHeightAtPosition(from.ToVec3(1000f), BodyFlags.CommonCollisionExcludeFlagsForAgent)));
+            var end = new WorldPosition(scene, point);
+            return scene.DoesPathExistBetweenPositions(start, end);
+        }
+        catch
+        {
+            // If the scene cannot answer, take the spot as given rather than dropping the work.
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Finds a workable spot at or near the one the layout asked for, pulling it back toward its owner's line and
+    /// trying a little to each side. Returns false when the ground nearby is hopeless, and the work is skipped.
+    /// </summary>
+    private static bool PlaceOnGround(Mission mission, Team owner, Vec2 from, Vec2 wanted, Vec2 forward, bool keepOutsideBoundary, out Vec2 chosen)
+    {
+        chosen = wanted;
+        if (IsUsableGround(mission, owner, from, wanted, keepOutsideBoundary)) return true;
+        Vec2 lateral = forward.LeftVec();
+        for (float back = FortificationState.GroundSearchStep; back <= FortificationState.MaxGroundSearch; back += FortificationState.GroundSearchStep)
+        {
+            foreach (float side in new[] { 0f, 6f, -6f, 12f, -12f })
+            {
+                Vec2 candidate = wanted - forward * back + lateral * side;
+                if (!IsUsableGround(mission, owner, from, candidate, keepOutsideBoundary)) continue;
+                chosen = candidate;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the defending lord's works in front of his own infantry, laid out the way the player's defaults are.
+    /// He places nothing by hand, so these go straight down with no ghosts or cards.
+    /// </summary>
+    private void BuildEnemyWorks(Mission mission)
+    {
+        try
+        {
+            bool debug = _settings.Debug;
+            if (!FortificationState.EnemyAnyPending)
+            {
+                if (debug) ErrorLog.Debug("Defender works: nothing was decided for this battle.");
+                return;
+            }
+            Team? enemy = mission.PlayerEnemyTeam;
+            if (enemy == null)
+            {
+                if (debug) ErrorLog.Debug("Defender works: no enemy team in this mission.");
+                return;
+            }
+            mission.GetFormationSpawnFrame(enemy, FormationClass.Infantry, false, out WorldPosition spawn, out Vec2 direction, true);
+            if (!spawn.IsValid)
+            {
+                if (debug) ErrorLog.Debug("Defender works: the enemy has no valid infantry spawn frame.");
+                return;
+            }
+            if (debug) ErrorLog.Debug($"Defender works: building [{string.Join(",", FortificationState.Enemy)}] for side {enemy.Side} at {spawn.AsVec2}.");
+
+            Vec2 forward = direction.Normalized();
+            Vec2 lateral = forward.LeftVec();
+            Vec2 origin = spawn.AsVec2;
+            float halfSpan = (FortificationState.SegmentCount - 1) * FortificationState.SegmentPitch * 0.5f;
+            bool useBoundary = mission.DeploymentPlan.HasDeploymentBoundaries(enemy);
+
+            float Distance(float lateralOffset)
+            {
+                Vec2 from = origin + lateral * lateralOffset;
+                return useBoundary ? DistanceToBoundary(mission, enemy, from, forward) : FortificationState.DistanceInFront;
+            }
+
+            int lines = FortificationState.EnemyCount(FortificationState.Work.Barricades);
+            int ballistas = FortificationState.EnemyCount(FortificationState.Work.Ballista);
+            int mangonels = FortificationState.EnemyCount(FortificationState.Work.Mangonel);
+            int stockpiles = FortificationState.EnemyCount(FortificationState.Work.Arrows);
+            int platforms = FortificationState.EnemyCount(FortificationState.Work.Tower);
+            float frontHalfWidth = halfSpan + Math.Max(0, lines - 1) * FortificationState.LinePitch * 0.5f;
+
+            for (int n = 0; n < lines; n++)
+            {
+                float lineOffset = (n - (lines - 1) * 0.5f) * FortificationState.LinePitch;
+                float lineDistance = 0f;
+                for (int i = 0; i < FortificationState.SegmentCount; i++)
+                    lineDistance = Math.Max(lineDistance, Distance(lineOffset + i * FortificationState.SegmentPitch - halfSpan));
+                Vec2 wanted = origin + lateral * lineOffset + forward * lineDistance;
+                if (!PlaceOnGround(mission, enemy, origin, wanted, forward, true, out Vec2 centre))
+                {
+                    if (debug) ErrorLog.Debug($"Defender works: no ground for a barricade line near {wanted}, skipped.");
+                    continue;
+                }
+                for (int i = 0; i < FortificationState.SegmentCount; i++)
+                {
+                    Vec2 at = centre + lateral * (i * FortificationState.SegmentPitch - halfSpan);
+                    if (SpawnSegment(mission, enemy, at, -forward)) _barricades.Add(new Barricade(at, forward));
+                }
+            }
+            for (int n = 0; n < ballistas; n++)
+            {
+                float offset = frontHalfWidth + FortificationState.EngineFlankOffset + n * FortificationState.EnginePitch;
+                Vec2 wanted = origin + lateral * offset + forward * Distance(offset);
+                if (!PlaceOnGround(mission, enemy, origin, wanted, forward, false, out Vec2 at))
+                {
+                    if (debug) ErrorLog.Debug($"Defender works: no ground for a ballista near {wanted}, skipped.");
+                    continue;
+                }
+                SpawnEngine(mission, enemy, FortificationState.BallistaPrefab, at, -forward);
+            }
+            for (int n = 0; n < mangonels; n++)
+            {
+                float offset = -(frontHalfWidth + FortificationState.EngineFlankOffset + n * FortificationState.EnginePitch);
+                Vec2 wanted = origin + lateral * offset + forward * Distance(offset);
+                if (!PlaceOnGround(mission, enemy, origin, wanted, forward, false, out Vec2 at))
+                {
+                    if (debug) ErrorLog.Debug($"Defender works: no ground for a catapult near {wanted}, skipped.");
+                    continue;
+                }
+                SpawnEngine(mission, enemy, FortificationState.MangonelPrefab, at, -forward);
+            }
+            for (int n = 0; n < stockpiles; n++)
+            {
+                float offset = (n - (stockpiles - 1) * 0.5f) * FortificationState.ArrowsPitch;
+                Vec2 wantedBarrels = origin + lateral * offset - forward * FortificationState.ArrowsBehindLine;
+                if (!PlaceOnGround(mission, enemy, origin, wantedBarrels, forward, false, out Vec2 centre))
+                {
+                    if (debug) ErrorLog.Debug($"Defender works: no ground for an arrow stockpile near {wantedBarrels}, skipped.");
+                    continue;
+                }
+                float halfBarrels = (FortificationState.ArrowBarrelCount - 1) * FortificationState.ArrowBarrelPitch * 0.5f;
+                for (int i = 0; i < FortificationState.ArrowBarrelCount; i++)
+                    SpawnArrowBarrel(mission, enemy, centre + lateral * (i * FortificationState.ArrowBarrelPitch - halfBarrels), -forward);
+            }
+            for (int n = 0; n < platforms; n++)
+            {
+                float offset = frontHalfWidth + FortificationState.TowerFlankOffset + ballistas * FortificationState.EnginePitch + n * (PlatformBuilder.DeckWidth + 4f);
+                MatrixFrame root = PlacementController.GroundFrame(mission.Scene, origin + lateral * offset + forward * Distance(offset), forward);
+                PlatformBuilder.Build(mission, in root);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Defender works failed: " + ex);
         }
     }
 
@@ -297,16 +489,16 @@ public sealed class FortificationMissionBehavior : MissionBehavior
 
             if (_settings.CrewAi)
             {
-                DetachmentManager detachments = owner.DetachmentManager;
-                if (!detachments.ContainsDetachment(weapon)) detachments.MakeDetachment(weapon);
-                PickCrewFormation(owner)?.JoinDetachment(weapon);
-                weapon.SetForcedUse(true);
+                var request = new CrewRequest { Weapon = weapon, Team = owner, GiveUpAt = mission.CurrentTime + 120f };
+                _crewPending.Add(request);
+                TryCrew(request);
             }
             else
             {
                 weapon.SetIsDisabledForAI(true);
             }
             _engines.Add(weapon);
+            if (_settings.Debug && _reportAt < 0f) _reportAt = mission.CurrentTime + 20f;
         }
         catch (Exception ex)
         {
@@ -357,6 +549,72 @@ public sealed class FortificationMissionBehavior : MissionBehavior
     private sealed class BarrelAi : UsableMachineAIBase
     {
         public BarrelAi(UsableMachine machine) : base(machine) { }
+    }
+
+    /// <summary>
+    /// Hands an engine to a formation that can spare men. An army that has not formed up yet has nobody to send,
+    /// which is the usual case for the enemy when its works are built, so this is retried until a pilot climbs on.
+    /// </summary>
+    private bool TryCrew(CrewRequest request)
+    {
+        try
+        {
+            DetachmentManager detachments = request.Team.DetachmentManager;
+            if (!detachments.ContainsDetachment(request.Weapon)) detachments.MakeDetachment(request.Weapon);
+            Formation? formation = PickCrewFormation(request.Team);
+            if (formation == null) return false;
+            if (formation != request.Joined)
+            {
+                formation.JoinDetachment(request.Weapon);
+                request.Joined = formation;
+            }
+            request.Weapon.SetForcedUse(true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Crewing an engine failed: " + ex);
+            return false;
+        }
+    }
+
+    private void TickCrew()
+    {
+        float now = Mission.CurrentTime;
+        for (int i = _crewPending.Count - 1; i >= 0; i--)
+        {
+            CrewRequest request = _crewPending[i];
+            if (request.Weapon.PilotAgent != null)
+            {
+                if (_settings.Debug) ErrorLog.Debug($"Engine crewed: side {request.Team.Side}, formation {request.Joined?.FormationIndex}.");
+                _crewPending.RemoveAt(i);
+                continue;
+            }
+            if (now >= request.GiveUpAt)
+            {
+                if (_settings.Debug) ErrorLog.Debug($"Engine never crewed: side {request.Team.Side} had nobody to spare.");
+                _crewPending.RemoveAt(i);
+                continue;
+            }
+            if (now < request.NextTry) continue;
+            request.NextTry = now + 2f;
+            TryCrew(request);
+        }
+    }
+
+    /// <summary>One line per engine a short while into the battle, so a silent engine can be explained.</summary>
+    private void ReportEngines()
+    {
+        _reportAt = -1f;
+        foreach (RangedSiegeWeapon weapon in _engines)
+        {
+            try
+            {
+                ErrorLog.Debug($"Engine check: {weapon.GetType().Name} side={weapon.Side} ammo={weapon.AmmoCount} state={weapon.State} " +
+                               $"pilot={(weapon.PilotAgent != null ? "yes" : "no")} forAI={!weapon.IsDisabledForAI} deactivated={weapon.IsDeactivated}.");
+            }
+            catch (Exception ex) { ErrorLog.Debug("Engine check failed: " + ex.Message); }
+        }
     }
 
     private static Formation? PickCrewFormation(Team team)

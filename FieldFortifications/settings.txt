@@ -17,6 +17,12 @@ eng_platform=40
 eng_step=15
 # Engineering experience your engineer gains per 1,000 denars of works bought.
 eng_xp_per_1000=50
+# 1 = a defending AI lord digs in too when you attack him in the field, scaled by his Engineering and his purse.
+ai_fortifications=1
+# How much the defender builds: 0.5 is half as much, 2 is twice as much.
+ai_scale=1.0
+# Testing: 1 = every AI enemy builds a full set whatever its leader's skill or purse, bandits included, attacking or defending.
+ai_test=0
 # How many of each work can be bought for one battle.
 max_barricades=3
 max_ballistas=2
