@@ -2,6 +2,9 @@
 
 ## v1.5.0
 
+Also available for Bannerlord v1.3.15 as a separate download (`ManorLord-v1.5.0-for-Bannerlord-1.3.15`),
+with the same features. It is built from `src/compat-1.3.15`.
+
 **Station troops at the manor.** Once the guard quarters are built, *Manage the household guard →
 Station or collect troops* opens the party screen with the manor's quarters on one side and your
 party on the other. Leave up to 20 soldiers there (30 on a landed estate, 40 on a grand one) and
