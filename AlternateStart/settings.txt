@@ -1,0 +1,90 @@
+# Alternate Start settings. Read each time character creation opens, so edits apply to the next new campaign
+# without restarting the game. Delete a line (or the whole file) to use its default.
+
+# ---- General -------------------------------------------------------------------------------------------------
+
+# 1 = each start adds a small skill bonus, the same size as a vanilla creation page (shown on the review page).
+skill_bonuses=1
+
+# 1 = also add the start pages to the story mode campaign. Off by default: the main quest assumes the
+# vanilla start (your missing siblings, the tutorial), and a ruler or rebel start can break its story.
+allow_story_mode=0
+
+# 1 = write Modules/AlternateStart/debug.txt explaining each step. Problems always go to errors.txt.
+debug=0
+
+# ---- Start-specific options ----------------------------------------------------------------------------------
+
+# Merchant: workshops bought for you (capped by what your clan tier allows) and whether a companion leads a
+# caravan out of your home town. With no wanderer free to lead it, you get 15,000 denars instead.
+merchant_workshops=2
+merchant_caravan=1
+
+# Outlaw Chief: crime rating with the realm you start in (30 makes its guards and patrols hostile).
+outlaw_crime=30
+
+# Militia Captain: relation gained with the headmen of your village.
+militia_relation=15
+
+# Escaped Captive: health you start with, as a percentage.
+captive_health_percent=30
+
+# Ruler of a Realm: 1 = the old ruler dies; 0 = they step aside and live on as a vassal lord.
+ruler_old_ruler_dies=1
+# 1 = the realm flies the banner you designed in character creation instead of its old one.
+ruler_kingdom_takes_your_banner=1
+
+# Rebel King: 1 = ask you to name your new kingdom when the map opens.
+rebel_name_prompt=1
+
+# ---- Per-start values ----------------------------------------------------------------------------------------
+#
+# Every start can be tuned with <start>.<field>=<value>. The creation page shows the numbers you set here.
+#   enabled         1 shows the start on the creation page, 0 hides it
+#   gold            denars added to your purse (wanderer and captive: your whole purse)
+#   troops          soldiers in your party
+#   min_tier        lowest troop tier (1-6)
+#   max_tier        highest troop tier (1-6)
+#   clan_tier       clan tier you start at (0-6)
+#   influence       influence you start with
+#   companions      wanderers hired for you; with fiefs, some go to govern them
+#   ruler_relation  relation gained with the realm's ruler
+#
+# Start ids: adventurer, wanderer, captive, militia, veteran, merchant, mercenary, outlaw, noble, landholder,
+#            vassal, duke, rebel, ruler
+#
+# Defaults are listed below; uncomment and change any of them.
+
+# wanderer.gold=30
+# captive.troops=4
+# militia.gold=1500
+# militia.troops=15
+# veteran.gold=4000
+# veteran.troops=8
+# merchant.gold=10000
+# mercenary.gold=5000
+# mercenary.troops=25
+# mercenary.clan_tier=2
+# outlaw.gold=2500
+# outlaw.troops=20
+# noble.gold=10000
+# noble.troops=12
+# noble.ruler_relation=10
+# landholder.gold=15000
+# landholder.troops=30
+# landholder.companions=2
+# vassal.gold=20000
+# vassal.troops=35
+# vassal.influence=150
+# vassal.ruler_relation=20
+# duke.gold=40000
+# duke.troops=50
+# duke.influence=300
+# duke.ruler_relation=30
+# rebel.gold=40000
+# rebel.troops=60
+# rebel.influence=200
+# ruler.gold=60000
+# ruler.troops=60
+# ruler.influence=400
+# ruler.clan_tier=5

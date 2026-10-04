@@ -4,6 +4,7 @@ Collection of Mount & Blade II: Bannerlord mods.
 
 Each folder is a separate Bannerlord module:
 
+- `AlternateStart` - choose how your story begins inside character creation: fourteen starts, from destitute wanderer, escaped captive, merchant, mercenary captain and outlaw chief to vassal lord, rebel king or ruler of an existing realm, each with its own outfit, troops, land and politics in the realm you pick. Every value tunable in `settings.txt`; separate build for v1.3.15. No Harmony required.
 - `CompanionDefense` - lets you send companion-led clan parties to defend owned villages, castles, and towns under attack.
 - `CompanionHotswap` - companion swapping and selection UI support.
 - `DuelCompanions` - adds roaming duel rumors, elite duelists, gauntlets, rare weapon rewards, and recruitable duel companions.
