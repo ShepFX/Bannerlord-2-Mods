@@ -1,3 +1,49 @@
+Strategic Campaign AI - v0.3.2
+==============================
+
+Requires Mount & Blade II: Bannerlord v1.4.8.
+
+
+Fixes
+-----
+- Kingdoms no longer all go on the defensive at once. War exhaustion counted
+  every enemy's full strength, so both sides of a war could count as
+  outmatched whenever either was also fighting elsewhere; on maps with many
+  kingdoms nearly every realm sat on ForcePeace and wars stalled. An enemy
+  fighting several wars now counts with only its share of its strength.
+- A large realm is no longer worn out by the same three raided villages as a
+  small one: the raid threshold now also scales with the number of villages.
+- A ruler granting a newly taken fief to one of his own clans is no longer
+  logged as a capture or remembered as a lost fief, so a realm can no longer
+  set out to reclaim a castle it already holds. Saves carrying such a claim
+  drop it automatically.
+
+Added setting: ExhaustionRaidedFraction.
+
+
+Strategic Campaign AI - v0.3.1
+==============================
+
+Requires Mount & Blade II: Bannerlord v1.4.8.
+
+
+Changes
+-------
+- Armies now commit to a siege rather than switching between nearby targets.
+- Kingdoms hold a defensive footing steadily instead of alternating between
+  defending and attacking.
+- Army roles are held for a minimum period, so armies stop changing course.
+- Siege judgement counts only a rival kingdom's relieving force, not troops
+  already inside the walls.
+- A failed siege is remembered per kingdom, so an army does not turn straight
+  back to the same target.
+- Threat assessment is now consistent from one check to the next.
+- Strategic memory is tidied for armies that no longer exist.
+
+Added settings: SiegeAbandonConfirmationHours, RoleMinimumHoldHours,
+UrgentDefenseLatchHours.
+
+
 Strategic Campaign AI - v0.3.0
 ==============================
 

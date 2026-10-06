@@ -85,6 +85,7 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         try
         {
             StrategicAiState.PruneExpired();
+            PruneStateForLiveArmies();
 
             foreach (Kingdom kingdom in Kingdom.All)
             {
@@ -112,6 +113,11 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
 
     private static void OnHourlyTick()
     {
+        // Runs every hour, ahead of the cadence gate below. The siege verdict
+        // needs finer resolution than the four-hourly planner, and it must keep
+        // ticking while a siege is under way rather than only on planning hours.
+        UpdateSiegeWatch();
+
         int currentHour = (int)(CampaignTime.Now.ToDays * 24d);
         if (currentHour == LastStrategicUpdateHour ||
             currentHour % StrategicAiTuning.StrategicUpdateIntervalHours != 0)
@@ -154,6 +160,142 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
     }
 
     /// <summary>
+    /// Decides, once an hour, whether each AI siege in progress is hopeless, and
+    /// records the verdict for the score model to read.
+    ///
+    /// This exists because the verdict cannot be reached correctly from the
+    /// scoring path. There it was recomputed per query and could only ever apply
+    /// to the settlement a party was already besieging, so lifting the siege
+    /// deleted the penalty and the abandoned castle immediately scored full value
+    /// again -- two castles close enough to share one relief force traded the
+    /// same army back and forth indefinitely. Reaching it here gives the verdict
+    /// somewhere to persist, lets it be confirmed over several hours before it
+    /// bites, and gives us the one moment at which a siege is genuinely
+    /// abandoned, which is when the failure cooldown should be recorded.
+    /// </summary>
+    private static void UpdateSiegeWatch()
+    {
+        try
+        {
+            var besieging = new HashSet<string>();
+
+            foreach (MobileParty party in StrategicAiCache.GetActiveLordParties())
+            {
+                if (party == null || StrategicAiHelpers.IsPlayerControlled(party))
+                {
+                    continue;
+                }
+
+                // Every party in a besieging army shares its BesiegedSettlement,
+                // but only the leader's score decides whether the siege holds --
+                // and a member judged on its own strength alone would call almost
+                // any siege hopeless. Watch the leader, and lone lords.
+                if (party.Army != null && party.Army.LeaderParty != party)
+                {
+                    continue;
+                }
+
+                Settlement? current = party.BesiegedSettlement;
+                Settlement? previous = StrategicAiState.GetWatchedSiegeTarget(party);
+
+                if (previous != null && previous != current)
+                {
+                    // The siege ended. If the place is still in enemy hands it
+                    // was not taken, so record the failure -- this is the call
+                    // that was unreachable on default settings, which is why
+                    // TargetFailureCooldownHours never applied to anything and
+                    // an army could turn straight back around.
+                    if (StrategicAiHelpers.IsEnemy(party.MapFaction, previous.MapFaction))
+                    {
+                        StrategicAiState.MarkFailedTarget(party.MapFaction, previous);
+                        Log(party.Name + " gave up the siege of " + previous.Name + ".");
+                    }
+                }
+
+                if (current == null)
+                {
+                    StrategicAiState.SetWatchedSiegeTarget(party, null);
+                    continue;
+                }
+
+                string? partyKey = party.Party?.Id;
+                if (!string.IsNullOrEmpty(partyKey))
+                {
+                    besieging.Add(partyKey!);
+                }
+
+                StrategicAiState.SetWatchedSiegeTarget(party, current);
+                StrategicAiState.SetSiegeHopeless(party, IsSiegeHopeless(party, current));
+            }
+
+            StrategicAiState.PruneSiegeWatch(besieging);
+        }
+        catch (Exception exception)
+        {
+            Log("Siege watch failed: " + exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// True when the relief force around a settlement this party is besieging
+    /// clearly outmatches it.
+    ///
+    /// The relief sweep excludes anyone already inside the walls or already
+    /// fighting here. Counting them made a castle with two or three lords holed
+    /// up in it read as hopelessly relieved the moment the siege camp went up --
+    /// those troops are what the siege is against, not a force coming to break
+    /// it.
+    /// </summary>
+    private static bool IsSiegeHopeless(MobileParty party, Settlement besieged)
+    {
+        if (party.MapFaction == null)
+        {
+            return false;
+        }
+
+        float relief = StrategicAiHelpers.SiegeReliefStrength(
+            besieged,
+            party.MapFaction,
+            StrategicAiTuning.SiegeReliefRadius);
+
+        Army? army = party.Army;
+        float ourTotal = army != null && army.LeaderParty == party
+            ? army.EstimatedStrength
+            : party.Party?.EstimatedStrength ?? 0f;
+
+        return ourTotal > 0f && relief > ourTotal * StrategicAiTuning.SiegeAbandonReliefRatio;
+    }
+
+    /// <summary>
+    /// Drops per-army memory for armies that no longer exist. Target locks are
+    /// persisted, so without this a save accumulates locks belonging to armies
+    /// that dissolved campaigns ago, each one holding a settlement under
+    /// DuplicateTargetPenalty for every army that is still alive.
+    /// </summary>
+    private static void PruneStateForLiveArmies()
+    {
+        var live = new HashSet<string>();
+
+        foreach (Kingdom kingdom in Kingdom.All)
+        {
+            if (kingdom.Armies == null)
+            {
+                continue;
+            }
+
+            foreach (Army army in kingdom.Armies)
+            {
+                if (army != null)
+                {
+                    live.Add(StrategicAiState.GetLiveArmyKey(army));
+                }
+            }
+        }
+
+        StrategicAiState.PruneDeadArmies(live);
+    }
+
+    /// <summary>
     /// Recomputes the faction snapshot then the war goal. Order matters: the war
     /// goal is derived from the fresh status, and the status caches the goal, so
     /// the snapshot is stored again afterwards.
@@ -186,7 +328,13 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
             }
 
             status.ActiveWars++;
-            status.EnemyStrength += enemyFaction.CurrentTotalStrength;
+
+            // An enemy fighting several wars cannot turn its whole strength on us, so count only our share of
+            // it. Summing every enemy's full strength made both sides of a war "outmatched" whenever either was
+            // fighting on another front too, and on maps with many kingdoms nearly every realm went on the
+            // defensive at once and wars stalled.
+            int enemyWars = enemyFaction.FactionsAtWarWith.Count(StrategicAiHelpers.IsMajorWarFaction);
+            status.EnemyStrength += enemyFaction.CurrentTotalStrength / MathF.Max(1, enemyWars);
         }
 
         // "Threatened" must mean genuinely in danger, not merely near a border.
@@ -199,9 +347,9 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
              StrategicAiHelpers.NearbyMajorEnemyLordStrength(settlement, kingdom, StrategicAiTuning.ThreatenedFortificationRadius) >
              (settlement.Party?.EstimatedStrength ?? 0f) * StrategicAiTuning.ThreatenedGarrisonRatio));
 
-        status.RaidedVillages = kingdom.Settlements
-            .SelectMany(settlement => settlement.BoundVillages)
-            .Count(village => village.Settlement.IsUnderRaid || village.Settlement.IsRaided);
+        var villages = kingdom.Settlements.SelectMany(settlement => settlement.BoundVillages).ToList();
+        status.OwnedVillages = villages.Count;
+        status.RaidedVillages = villages.Count(village => village.Settlement.IsUnderRaid || village.Settlement.IsRaided);
 
         return status;
     }
@@ -324,7 +472,15 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
                 continue;
             }
 
-            StrategicAiState.SetTargetLock(army, leader.BesiegedSettlement ?? leader.TargetSettlement);
+            // Only ever record a real objective. Writing through a null here
+            // deleted the lock -- and with it the 1.4x commitment bonus -- every
+            // time vanilla momentarily cleared TargetSettlement, which is exactly
+            // the moment before it re-picks and the anchor is most needed.
+            Settlement? observed = leader.BesiegedSettlement ?? leader.TargetSettlement;
+            if (observed != null)
+            {
+                StrategicAiState.SetTargetLock(army, observed);
+            }
         }
     }
 
@@ -341,13 +497,34 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         }
 
         StrategicFactionStatus status = StrategicAiState.GetFactionStatus(kingdom);
-        bool urgentDefense = status.ThreatenedFortifications > 0 ||
-                             status.RaidedVillages > 1 ||
-                             status.WarGoal == StrategicWarGoal.DefendCapitalRegion ||
-                             status.WarGoal == StrategicWarGoal.ForcePeace;
+
+        // Entering the defensive posture is immediate; leaving it takes a quiet
+        // spell. The trigger is a bare "one or more fiefs threatened" count over
+        // its own hard threshold, so without the latch a single enemy party
+        // drifting across a 45-unit circle re-roled every army in the realm, and
+        // drifting back out re-roled them again -- each flip worth
+        // RoleAligned / RoleMismatch on every besiege-versus-defend decision.
+        if (status.ThreatenedFortifications > 0 ||
+            status.RaidedVillages > 1 ||
+            status.WarGoal == StrategicWarGoal.DefendCapitalRegion ||
+            status.WarGoal == StrategicWarGoal.ForcePeace)
+        {
+            StrategicAiState.LatchUrgentDefense(kingdom);
+        }
+
+        bool urgentDefense = StrategicAiState.IsUrgentDefenseLatched(kingdom);
 
         for (int i = 0; i < armies.Count; i++)
         {
+            // Roles are handed out by strength ranking, and that ranking moves
+            // with every casualty and every recruit. Holding an assigned role for
+            // RoleMinimumHoldHours stops two armies trading Aggressor and
+            // Defender with each other over noise.
+            if (!StrategicAiState.CanChangeRole(armies[i]))
+            {
+                continue;
+            }
+
             StrategicArmyRole role;
             if (status.WarGoal == StrategicWarGoal.ForcePeace || status.WarGoal == StrategicWarGoal.DefendCapitalRegion)
             {
@@ -456,7 +633,7 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         Settlement? lockedTarget = StrategicAiState.GetTargetLock(army);
         if (lockedTarget != null)
         {
-            StrategicAiState.MarkFailedTarget(lockedTarget);
+            StrategicAiState.MarkFailedTarget(leader.MapFaction, lockedTarget);
             Log(leader.Name + " stuck heading to " + lockedTarget.Name + "; dropping objective.");
         }
 
@@ -488,7 +665,7 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         }
 
         Settlement? lockedTarget = StrategicAiState.GetTargetLock(army);
-        if (lockedTarget == null || StrategicAiState.IsTargetOnCooldown(lockedTarget))
+        if (lockedTarget == null || StrategicAiState.IsTargetOnCooldown(kingdom, lockedTarget))
         {
             return false;
         }
@@ -591,7 +768,7 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         Settlement? operationTarget = StrategicAiState.GetOperationTarget(kingdom);
         if (operationTarget == null ||
             operationTarget.MapFaction == kingdom ||
-            StrategicAiState.IsTargetOnCooldown(operationTarget))
+            StrategicAiState.IsTargetOnCooldown(kingdom, operationTarget))
         {
             return false;
         }
@@ -703,6 +880,14 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
             return;
         }
 
+        // A fief changing hands inside one realm (the ruler granting a fresh conquest, a gift, a barter) is not a
+        // capture. Treating it as one logged a bogus CAPTURE and filed the realm's own fief as a lost claim, which
+        // overwrote any real loss and could leave the realm trying to "reclaim" a castle it already held.
+        if (oldOwner?.MapFaction != null && oldOwner.MapFaction == newOwner?.MapFaction)
+        {
+            return;
+        }
+
         StrategicAiState.MarkRecentlyCaptured(settlement);
         if (oldOwner?.MapFaction is Kingdom oldKingdom)
         {
@@ -768,5 +953,16 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
         {
             StrategicAiState.SetArmyCreationCooldown(mobileParty.LeaderHero, StrategicAiTuning.DefeatedLeaderArmyCooldownDays);
         }
+
+        // Destroyed while besieging: the siege failed as decisively as it can,
+        // so the target goes on cooldown for that faction rather than the wreck
+        // of its army being sent straight back.
+        Settlement? besieged = StrategicAiState.GetWatchedSiegeTarget(mobileParty);
+        if (besieged != null && StrategicAiHelpers.IsEnemy(mobileParty.MapFaction, besieged.MapFaction))
+        {
+            StrategicAiState.MarkFailedTarget(mobileParty.MapFaction, besieged);
+        }
+
+        StrategicAiState.ForgetSiegeWatch(mobileParty);
     }
 }

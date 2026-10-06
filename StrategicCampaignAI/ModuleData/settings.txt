@@ -30,7 +30,7 @@
 # EnableSiegeRetreat = true
 
 # Write decisions to the rgl log (Documents\Mount and Blade II Bannerlord\logs).
-# VerboseLogging = false
+VerboseLogging = true
 
 # ------------------------------------------------------------------ score bounds
 #
@@ -64,8 +64,42 @@
 # stops two armies swapping targets forever. Raise it if armies still waver.
 # CurrentObjectiveStickinessMultiplier = 1.4
 
-# How long a failed target is avoided, in hours.
+# How long a failed target is avoided, in hours. An abandoned siege, or one lost
+# with the besieging army, records one of these against the faction that failed.
 # TargetFailureCooldownHours = 96
+
+# How hard a recently failed target is suppressed for attack missions during that
+# cooldown. Applied outside the score clamp, so it actually redirects the army.
+# FailedTargetMultiplier = 0.12
+
+# ------------------------------------------------------------ steadying the AI
+#
+# These four exist to stop the AI changing its mind faster than it can act. If
+# you see armies swapping between two nearby castles, or turning back to defend a
+# fief and then setting off to besiege again, these are the knobs.
+
+# How long a siege must look hopeless before an army is allowed to give it up.
+# The verdict can only apply to the siege actually in progress, so without a
+# confirmation window lifting one siege makes the abandoned castle attractive
+# again immediately and the army walks back and forth between two of them.
+# Raise it to make armies more stubborn; set EnableSiegeRetreat = false to stop
+# them abandoning sieges at all.
+# SiegeAbandonConfirmationHours = 8
+
+# Relief strength, as a multiple of the besieging army, that makes a siege look
+# hopeless. Troops inside the walls do not count towards it.
+# SiegeAbandonReliefRatio = 1.6
+
+# Minimum hours an army keeps the role it was given. Roles are assigned by
+# strength ranking, so without a hold a few casualties reorder the list and two
+# armies trade Aggressor and Defender with each other, which reads in game as
+# both of them turning around. Raise it if armies still look indecisive.
+# RoleMinimumHoldHours = 24
+
+# How long a kingdom stays on a defensive footing after the last of its fiefs
+# stops looking threatened. Entering is immediate; this only delays leaving, so
+# one enemy party drifting past a fief cannot re-role the whole realm twice.
+# UrgentDefenseLatchHours = 24
 
 # ------------------------------------------------------------- offensive shaping
 
@@ -87,6 +121,12 @@
 # ThreatenedFortificationDefenseMultiplier = 1.6
 # WarExhaustionDefenseMultiplier = 1.3
 
+# Army roles nudge the score for each mission type. Setting both of these to 1.0
+# switches role preference off entirely, which is the quickest way to rule roles
+# out when diagnosing an army that keeps changing its mind.
+# RoleAlignedMultiplier = 1.25
+# RoleMismatchMultiplier = 0.8
+
 # ------------------------------------------------------------------ army gating
 
 # Raise these to make the AI form armies less readily; lower them for more armies.
@@ -107,12 +147,16 @@
 #
 # An exhausted faction switches to the ForcePeace goal, which damps its offence.
 # Raise ExhaustionStrengthRatio or ExhaustionMinThreatenedFortifications to make
-# factions keep fighting for longer.
+# factions keep fighting for longer. An enemy fighting several wars counts with
+# only its share of its strength. A realm is raided out when at least
+# ExhaustionRaidedVillages, and at least ExhaustionRaidedFraction of its villages,
+# are raided at once.
 
 # ExhaustionStrengthRatio = 1.5
 # ExhaustionThreatenedFraction = 0.34
 # ExhaustionMinThreatenedFortifications = 2
 # ExhaustionRaidedVillages = 3
+# ExhaustionRaidedFraction = 0.25
 
 # ------------------------------------------------------------ persistent memory
 #

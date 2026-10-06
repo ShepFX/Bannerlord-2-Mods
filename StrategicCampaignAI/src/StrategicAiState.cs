@@ -27,6 +27,10 @@ internal static class StrategicAiState
     private static readonly Dictionary<string, double> ArmyCreationCooldownUntilDaysByHero = new();
     private static readonly Dictionary<string, double> WeakPartyCreatedDaysByHero = new();
     private static readonly Dictionary<string, double> GarrisonReinforcedDaysBySettlement = new();
+    private static readonly Dictionary<string, double> RoleAssignedDaysByArmy = new();
+    private static readonly Dictionary<string, string> SiegeTargetByParty = new();
+    private static readonly Dictionary<string, double> SiegeHopelessSinceDaysByParty = new();
+    private static readonly Dictionary<string, double> UrgentDefenseUntilDaysByFaction = new();
 
     private static readonly Dictionary<string, Settlement> SettlementsById = new();
 
@@ -133,11 +137,15 @@ internal static class StrategicAiState
     public static void ResetRuntimeOnly()
     {
         RolesByArmy.Clear();
+        RoleAssignedDaysByArmy.Clear();
         LastOrderDaysByArmy.Clear();
         LastOrderTargetByArmy.Clear();
         ArmyProgressByArmy.Clear();
         FactionStatuses.Clear();
         WeakPartyCreatedDaysByHero.Clear();
+        SiegeTargetByParty.Clear();
+        SiegeHopelessSinceDaysByParty.Clear();
+        UrgentDefenseUntilDaysByFaction.Clear();
         SettlementsById.Clear();
         StrategicAiCache.Reset();
     }
@@ -151,6 +159,7 @@ internal static class StrategicAiState
     {
         EnemyTerritoryDaysByArmy.Clear();
         RolesByArmy.Clear();
+        RoleAssignedDaysByArmy.Clear();
         TargetLocksByArmy.Clear();
         TargetLockDaysByArmy.Clear();
         LastOrderDaysByArmy.Clear();
@@ -167,6 +176,9 @@ internal static class StrategicAiState
         ArmyCreationCooldownUntilDaysByHero.Clear();
         WeakPartyCreatedDaysByHero.Clear();
         GarrisonReinforcedDaysBySettlement.Clear();
+        SiegeTargetByParty.Clear();
+        SiegeHopelessSinceDaysByParty.Clear();
+        UrgentDefenseUntilDaysByFaction.Clear();
         SettlementsById.Clear();
         StrategicAiCache.Reset();
     }
@@ -201,6 +213,58 @@ internal static class StrategicAiState
         }
     }
 
+    /// <summary>
+    /// Drops per-army bookkeeping for armies that no longer exist.
+    ///
+    /// Time is the wrong axis for target locks. SetTargetLock only stamps
+    /// TargetLockDaysByArmy when the objective *changes*, so an army holding one
+    /// objective steadily ages out of that map while its lock is still current;
+    /// pruning locks on that stamp would delete live objectives. Meanwhile
+    /// TargetLocksByArmy was never pruned at all, and it is persisted, so an army
+    /// that changed leader orphaned its entry (the key is the leader party's id)
+    /// and IsTargetLockedByAnotherArmy went on applying DuplicateTargetPenalty
+    /// for a dead army, to a set of settlements that only ever grew.
+    /// </summary>
+    public static void PruneDeadArmies(HashSet<string> liveArmyKeys)
+    {
+        PruneKeysNotIn(TargetLocksByArmy, liveArmyKeys);
+        PruneKeysNotIn(TargetLockDaysByArmy, liveArmyKeys);
+        PruneKeysNotIn(RolesByArmy, liveArmyKeys);
+        PruneKeysNotIn(RoleAssignedDaysByArmy, liveArmyKeys);
+        PruneKeysNotIn(EnemyTerritoryDaysByArmy, liveArmyKeys);
+        PruneKeysNotIn(LastOrderDaysByArmy, liveArmyKeys);
+        PruneKeysNotIn(LastOrderTargetByArmy, liveArmyKeys);
+        PruneKeysNotIn(ArmyProgressByArmy, liveArmyKeys);
+    }
+
+    private static void PruneKeysNotIn<TValue>(Dictionary<string, TValue> map, HashSet<string> liveKeys)
+    {
+        List<string>? dead = null;
+        foreach (KeyValuePair<string, TValue> entry in map)
+        {
+            if (!liveKeys.Contains(entry.Key))
+            {
+                (dead ??= new List<string>()).Add(entry.Key);
+            }
+        }
+
+        if (dead == null)
+        {
+            return;
+        }
+
+        foreach (string key in dead)
+        {
+            map.Remove(key);
+        }
+    }
+
+    /// <summary>The key this army's state is filed under. Public so the pruner can build the live set.</summary>
+    public static string GetLiveArmyKey(Army army)
+    {
+        return GetArmyKey(army);
+    }
+
     private static void PruneOlderThan(Dictionary<string, double> map, double now, double maxAgeDays)
     {
         var expired = new List<string>();
@@ -224,6 +288,7 @@ internal static class StrategicAiState
         string key = GetArmyKey(army);
         EnemyTerritoryDaysByArmy.Remove(key);
         RolesByArmy.Remove(key);
+        RoleAssignedDaysByArmy.Remove(key);
         TargetLocksByArmy.Remove(key);
         TargetLockDaysByArmy.Remove(key);
         LastOrderDaysByArmy.Remove(key);
@@ -259,7 +324,57 @@ internal static class StrategicAiState
 
     public static void SetRole(Army army, StrategicArmyRole role)
     {
-        RolesByArmy[GetArmyKey(army)] = (int)role;
+        string key = GetArmyKey(army);
+        if (!RolesByArmy.TryGetValue(key, out int existing) || existing != (int)role)
+        {
+            RoleAssignedDaysByArmy[key] = CampaignTime.Now.ToDays;
+        }
+
+        RolesByArmy[key] = (int)role;
+    }
+
+    /// <summary>
+    /// True when this army has held its current role long enough to be given a
+    /// different one.
+    ///
+    /// Roles are handed out by strength ranking on every strategic tick, so
+    /// without a hold a few casualties reorder the list and two armies trade
+    /// Aggressor and Defender with each other -- each trade swinging the
+    /// besiege-versus-defend preference by RoleAligned / RoleMismatch. An army
+    /// that has never been given a role is always assignable.
+    /// </summary>
+    public static bool CanChangeRole(Army army)
+    {
+        string key = GetArmyKey(army);
+        if (!RolesByArmy.ContainsKey(key))
+        {
+            return true;
+        }
+
+        return !RoleAssignedDaysByArmy.TryGetValue(key, out double assignedDays) ||
+               (CampaignTime.Now.ToDays - assignedDays) * 24d >= StrategicAiTuning.RoleMinimumHoldHours;
+    }
+
+    /// <summary>
+    /// Puts the kingdom on a defensive footing and keeps it there for
+    /// UrgentDefenseLatchHours.
+    ///
+    /// The threat count this latches on is a hard threshold over a 45-unit
+    /// sweep, so one enemy party wandering across that circle used to re-role
+    /// every army in the realm and wandering back out re-roled them again.
+    /// Entering the defensive posture is immediate; leaving it takes a quiet
+    /// spell.
+    /// </summary>
+    public static void LatchUrgentDefense(Kingdom kingdom)
+    {
+        UrgentDefenseUntilDaysByFaction[kingdom.StringId] =
+            CampaignTime.Now.ToDays + (StrategicAiTuning.UrgentDefenseLatchHours / 24d);
+    }
+
+    public static bool IsUrgentDefenseLatched(Kingdom kingdom)
+    {
+        return UrgentDefenseUntilDaysByFaction.TryGetValue(kingdom.StringId, out double untilDays) &&
+               CampaignTime.Now.ToDays < untilDays;
     }
 
     public static void SetTargetLock(Army army, Settlement? settlement)
@@ -391,15 +506,139 @@ internal static class StrategicAiState
             : null;
     }
 
-    public static void MarkFailedTarget(Settlement settlement)
+    /// <summary>
+    /// Remembers that this faction's attempt on this settlement came to nothing.
+    ///
+    /// Scoped to the faction that failed. The cooldown used to be keyed by
+    /// settlement alone, which was harmless only because nothing ever reached
+    /// this method on default settings; now that an abandoned siege records one,
+    /// a global key would let one minor faction's failed siege suppress that
+    /// castle as a target for every kingdom on the map for four days.
+    /// </summary>
+    public static void MarkFailedTarget(IFaction? faction, Settlement settlement)
     {
-        FailedTargetCooldownDays[settlement.StringId] = CampaignTime.Now.ToDays;
+        string? key = GetFailedTargetKey(faction, settlement);
+        if (key != null)
+        {
+            FailedTargetCooldownDays[key] = CampaignTime.Now.ToDays;
+        }
     }
 
-    public static bool IsTargetOnCooldown(Settlement settlement)
+    public static bool IsTargetOnCooldown(IFaction? faction, Settlement settlement)
     {
-        return FailedTargetCooldownDays.TryGetValue(settlement.StringId, out double failedDays) &&
+        string? key = GetFailedTargetKey(faction, settlement);
+        return key != null &&
+               FailedTargetCooldownDays.TryGetValue(key, out double failedDays) &&
                (CampaignTime.Now.ToDays - failedDays) * 24d <= StrategicAiTuning.TargetFailureCooldownHours;
+    }
+
+    private static string? GetFailedTargetKey(IFaction? faction, Settlement? settlement)
+    {
+        if (faction == null || settlement == null ||
+            string.IsNullOrEmpty(faction.StringId) || string.IsNullOrEmpty(settlement.StringId))
+        {
+            return null;
+        }
+
+        return faction.StringId + "|" + settlement.StringId;
+    }
+
+    // ------------------------------------------------------------- siege watch
+    //
+    // The hopeless-siege verdict is evaluated once an hour by the campaign
+    // behaviour and only read from the scoring path. It used to be recomputed
+    // inside every score query, where it could only ever apply to the settlement
+    // a party was currently besieging -- so lifting the siege deleted the
+    // penalty, the abandoned castle immediately scored full value again, and two
+    // castles sharing one relief force traded the army back and forth forever.
+
+    /// <summary>The settlement this party was besieging as of the last hourly check.</summary>
+    public static Settlement? GetWatchedSiegeTarget(MobileParty party)
+    {
+        string? key = GetPartyKey(party);
+        return key != null && SiegeTargetByParty.TryGetValue(key, out string settlementId)
+            ? FindSettlement(settlementId)
+            : null;
+    }
+
+    public static void SetWatchedSiegeTarget(MobileParty party, Settlement? settlement)
+    {
+        string? key = GetPartyKey(party);
+        if (key == null)
+        {
+            return;
+        }
+
+        if (settlement == null)
+        {
+            SiegeTargetByParty.Remove(key);
+            SiegeHopelessSinceDaysByParty.Remove(key);
+            return;
+        }
+
+        if (!SiegeTargetByParty.TryGetValue(key, out string existing) || existing != settlement.StringId)
+        {
+            // A different siege is a fresh verdict.
+            SiegeHopelessSinceDaysByParty.Remove(key);
+        }
+
+        SiegeTargetByParty[key] = settlement.StringId;
+    }
+
+    /// <summary>Records this hour's verdict, starting the confirmation clock on the first hopeless one.</summary>
+    public static void SetSiegeHopeless(MobileParty party, bool hopeless)
+    {
+        string? key = GetPartyKey(party);
+        if (key == null)
+        {
+            return;
+        }
+
+        if (!hopeless)
+        {
+            SiegeHopelessSinceDaysByParty.Remove(key);
+            return;
+        }
+
+        if (!SiegeHopelessSinceDaysByParty.ContainsKey(key))
+        {
+            SiegeHopelessSinceDaysByParty[key] = CampaignTime.Now.ToDays;
+        }
+    }
+
+    /// <summary>
+    /// True when this party is besieging this settlement and the hopeless verdict
+    /// has held for SiegeAbandonConfirmationHours. Read-only, so it is safe on
+    /// the scoring hot path.
+    /// </summary>
+    public static bool IsSiegeAbandonConfirmed(MobileParty party, Settlement settlement)
+    {
+        string? key = GetPartyKey(party);
+        return key != null &&
+               SiegeTargetByParty.TryGetValue(key, out string settlementId) &&
+               settlementId == settlement.StringId &&
+               SiegeHopelessSinceDaysByParty.TryGetValue(key, out double sinceDays) &&
+               (CampaignTime.Now.ToDays - sinceDays) * 24d >= StrategicAiTuning.SiegeAbandonConfirmationHours;
+    }
+
+    /// <summary>
+    /// Drops watch entries for parties that are no longer besieging anything,
+    /// including parties that stopped existing between two checks.
+    /// </summary>
+    public static void PruneSiegeWatch(HashSet<string> besiegingPartyKeys)
+    {
+        PruneKeysNotIn(SiegeTargetByParty, besiegingPartyKeys);
+        PruneKeysNotIn(SiegeHopelessSinceDaysByParty, besiegingPartyKeys);
+    }
+
+    public static void ForgetSiegeWatch(MobileParty party)
+    {
+        string? key = GetPartyKey(party);
+        if (key != null)
+        {
+            SiegeTargetByParty.Remove(key);
+            SiegeHopelessSinceDaysByParty.Remove(key);
+        }
     }
 
     public static void MarkLostClaim(Kingdom kingdom, Settlement settlement)
@@ -407,11 +646,25 @@ internal static class StrategicAiState
         LostSettlementClaimByFaction[kingdom.StringId] = settlement.StringId;
     }
 
+    /// <summary>
+    /// The fief this realm most recently lost, while it is still in other hands. A claim on a fief the realm holds
+    /// again (retaken, or filed by an older version from an internal grant) is dropped.
+    /// </summary>
     public static Settlement? GetLostClaim(Kingdom kingdom)
     {
-        return LostSettlementClaimByFaction.TryGetValue(kingdom.StringId, out string settlementId)
-            ? FindSettlement(settlementId)
-            : null;
+        if (!LostSettlementClaimByFaction.TryGetValue(kingdom.StringId, out string settlementId))
+        {
+            return null;
+        }
+
+        Settlement? settlement = FindSettlement(settlementId);
+        if (settlement == null || settlement.MapFaction == kingdom)
+        {
+            LostSettlementClaimByFaction.Remove(kingdom.StringId);
+            return null;
+        }
+
+        return settlement;
     }
 
     public static StrategicWarGoal GetWarGoal(Kingdom kingdom)
@@ -575,6 +828,12 @@ internal static class StrategicAiState
     private static string GetArmyKey(Army army)
     {
         return army.LeaderParty?.Party?.Id ?? army.GetHashCode().ToString();
+    }
+
+    private static string? GetPartyKey(MobileParty? party)
+    {
+        string? id = party?.Party?.Id;
+        return string.IsNullOrEmpty(id) ? null : id;
     }
 
     private static string? GetHeroKey(Hero? hero)

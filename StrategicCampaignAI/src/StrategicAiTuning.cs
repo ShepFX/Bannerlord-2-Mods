@@ -107,12 +107,59 @@ internal static class StrategicAiTuning
     /// the siege itself, so it has to beat every alternative objective.
     /// </summary>
     public static float SiegeAbandonMultiplier = 0.08f;
+    /// <summary>
+    /// Score multiplier for an offensive mission against a settlement this
+    /// faction recently failed to take.
+    ///
+    /// Applied outside the clamp, like SiegeAbandonMultiplier. The cooldown used
+    /// to be a 0.6x factor inside a clamp whose floor is 0.45, which cannot
+    /// change the AI's mind about its dominant target: an army that gave up a
+    /// siege walked straight back, re-sieged, waited out the confirmation window
+    /// and gave up again, on a 15-21 hour cycle, for days.
+    /// </summary>
+    public static float FailedTargetMultiplier = 0.12f;
+    /// <summary>
+    /// How long the hopeless verdict must hold before the abandon multiplier is
+    /// applied.
+    ///
+    /// Without this the verdict was re-evaluated from scratch on every score
+    /// query, and because it can only ever apply to the settlement a party is
+    /// *currently* besieging, lifting the siege deleted the penalty and the
+    /// abandoned castle immediately looked attractive again. With two castles
+    /// close enough to share one relief force that closed into a loop: besiege
+    /// A, lift, besiege B, lift, besiege A. Requiring the verdict to survive a
+    /// few campaign hours means a relief force has to actually stay before an
+    /// army walks away from a siege.
+    /// </summary>
+    public static float SiegeAbandonConfirmationHours = 8f;
 
     // ------------------------------------------------------------- army roles
     /// <summary>Bonus when a mission matches the army role we assigned.</summary>
     public static float RoleAlignedMultiplier = 1.25f;
     /// <summary>Penalty when it does not.</summary>
     public static float RoleMismatchMultiplier = 0.8f;
+    /// <summary>
+    /// Minimum campaign hours an army keeps an assigned role.
+    ///
+    /// Roles used to be rebuilt from scratch on every strategic tick, and they
+    /// are handed out by strength ranking, so a handful of casualties reordered
+    /// the list and two armies swapped Aggressor and Defender with each other.
+    /// Each swap moves the besiege-versus-defend preference by
+    /// RoleAlignedMultiplier / RoleMismatchMultiplier, which is what players saw
+    /// as armies turning around every few hours.
+    /// </summary>
+    public static float RoleMinimumHoldHours = 24f;
+
+    /// <summary>
+    /// How long the kingdom stays on a defensive footing after the last of its
+    /// fiefs stops looking threatened.
+    ///
+    /// The gate is a bare "one or more fiefs threatened" count, and that count
+    /// comes from its own hard threshold, so a single enemy party drifting in
+    /// and out of a 45-unit circle re-roled every army in the realm. This latch
+    /// is the dead-band: entering is immediate, leaving takes a quiet spell.
+    /// </summary>
+    public static float UrgentDefenseLatchHours = 24f;
 
     // ------------------------------------------------------------ garrisoning
     /// <summary>Extra troops an AI lord will leave to a dangerously weak garrison.</summary>
@@ -137,8 +184,13 @@ internal static class StrategicAiTuning
     public static float ExhaustionThreatenedFraction = 0.34f;
     /// <summary>Floor for the above, so small kingdoms are not permanently exhausted.</summary>
     public static float ExhaustionMinThreatenedFortifications = 2f;
-    /// <summary>Simultaneously raided villages that count as exhausted.</summary>
+    /// <summary>Simultaneously raided villages that count as exhausted, at the least.</summary>
     public static int ExhaustionRaidedVillages = 3;
+    /// <summary>
+    /// Share of our villages raided at once that counts as exhausted. The flat count above is only a floor, so a
+    /// realm with dozens of villages is not exhausted by the same three raids as a city-state with six.
+    /// </summary>
+    public static float ExhaustionRaidedFraction = 0.25f;
     public static double GarrisonReinforcementCooldownDays = 3d;
     public static int ReinforcementTroopDonation = 18;
     public static int MinimumLeaderPartyTroopsAfterDonation = 65;
@@ -181,25 +233,34 @@ internal static class StrategicAiTuning
     /// <summary>
     /// Allow army leaders to top up a dangerously weak friendly garrison in passing.
     ///
-    /// OFF by default. This moves troops by mutating rosters directly
+    /// ON by default, and answered through
+    /// SettlementGarrisonModel.FindNumberOfTroopsToLeaveToGarrison so the engine
+    /// performs the transfer itself. The history below is why nothing here
+    /// touches a roster any more.
+    ///
+    /// The old implementation moved troops by mutating rosters directly
     /// (RemoveNumberOfNonHeroTroopsRandomly then MemberRoster.Add) because the
     /// campaign system exposes no action for transferring troops to a garrison.
     /// Across five test runs every crash had this enabled and the only clean run
     /// had it disabled; a run with everything else off still crashed with just
     /// this active, while the same configuration without it ran nearly twice as
-    /// long. It is also the feature behind the earlier "troops disappear when
-    /// entering a city" report. Not worth the risk for a cosmetic benefit.
+    /// long. It was also the feature behind the earlier "troops disappear when
+    /// entering a city" report. Both problems belonged to the roster mutation,
+    /// not to the idea, which is why the model-based version is on.
     /// </summary>
     public static bool EnableGarrisonReinforcement = true;
 
     /// <summary>
     /// Allow armies to abandon a siege they are clearly going to lose.
     ///
-    /// Off by default. This is the only place the mod reaches into a private
-    /// engine method (LiftSiegeAction.ApplyInternal) by reflection, and in
-    /// testing it re-fired on the same siege repeatedly because the lift did not
-    /// always take effect. An unexplained hard crash followed a session with 14
-    /// such calls, so it stays opt-in until the lift is proven to work.
+    /// ON by default, and expressed purely through the target score: a siege
+    /// judged hopeless is scored near zero so the vanilla AI lifts it itself.
+    /// Nothing reaches into LiftSiegeAction by reflection any more.
+    ///
+    /// The verdict is confirmed over SiegeAbandonConfirmationHours before it is
+    /// applied. Turning this off disables siege abandonment entirely, which is
+    /// still the quickest way to rule it out when diagnosing an army that keeps
+    /// changing its mind about a siege.
     /// </summary>
     public static bool EnableSiegeRetreat = true;
 

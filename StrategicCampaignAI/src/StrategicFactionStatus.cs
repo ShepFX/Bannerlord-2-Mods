@@ -10,6 +10,7 @@ internal sealed class StrategicFactionStatus
     public int ThreatenedFortifications { get; set; }
     public int ActiveWars { get; set; }
     public int RaidedVillages { get; set; }
+    public int OwnedVillages { get; set; }
     public StrategicWarGoal WarGoal { get; set; } = StrategicWarGoal.BorderWar;
     public bool WantsPeace { get; set; }
 
@@ -39,7 +40,10 @@ internal sealed class StrategicFactionStatus
                                StrategicAiTuning.ExhaustionMinThreatenedFortifications,
                                OwnedFortifications * StrategicAiTuning.ExhaustionThreatenedFraction);
 
-            bool raidedOut = RaidedVillages >= StrategicAiTuning.ExhaustionRaidedVillages;
+            bool raidedOut = RaidedVillages > 0 &&
+                             RaidedVillages >= MathF.Max(
+                                 (float)StrategicAiTuning.ExhaustionRaidedVillages,
+                                 OwnedVillages * StrategicAiTuning.ExhaustionRaidedFraction);
 
             return outmatched || overrun || raidedOut;
         }

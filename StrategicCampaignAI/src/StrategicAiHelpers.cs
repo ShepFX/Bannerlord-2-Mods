@@ -328,6 +328,50 @@ internal static class StrategicAiHelpers
         return StrategicAiCache.NearbyEnemyLordStrength(settlement, faction, radius);
     }
 
+    /// <summary>
+    /// Strength of hostile lords who could actually relieve a siege of this
+    /// settlement.
+    ///
+    /// Deliberately not the cached sweep. That one sums every hostile lord party
+    /// within the radius, and lords sheltering inside the settlement under siege
+    /// sit at distance zero -- so two or three of them were enough to push the
+    /// relief total past SiegeAbandonReliefRatio the moment the siege camp went
+    /// up, and the siege was judged hopeless before it had begun. Troops already
+    /// inside the walls are what the siege is against; they are not a relief
+    /// force. Parties locked in a battle here are likewise already committed.
+    ///
+    /// Only ever called for settlements currently under siege, so this runs a
+    /// handful of times an hour rather than from the scoring hot path, and does
+    /// not need memoising.
+    /// </summary>
+    public static float SiegeReliefStrength(Settlement besieged, IFaction besiegerFaction, float radius)
+    {
+        float total = 0f;
+
+        foreach (MobileParty party in StrategicAiCache.GetActiveLordParties())
+        {
+            // Rival kingdoms only. Minor-faction lords wandering past are not a
+            // relief force; counting them was what made armies walk away from
+            // sieges they were winning.
+            if (!IsEnemy(besiegerFaction, party.MapFaction) ||
+                !IsMajorWarFaction(party.MapFaction) ||
+                party.CurrentSettlement == besieged ||
+                party.BesiegedSettlement == besieged ||
+                party.MapEvent != null ||
+                party.SiegeEvent != null)
+            {
+                continue;
+            }
+
+            if (Distance(party, besieged) <= radius)
+            {
+                total += party.GetTotalLandStrengthWithFollowers(false);
+            }
+        }
+
+        return total;
+    }
+
     public static float PredictedEnemyThreatStrength(Settlement settlement, IFaction faction, float radius)
     {
         float total = 0f;
@@ -420,7 +464,7 @@ internal static class StrategicAiHelpers
             bool isFrontline = IsEnemyFrontlineTarget(settlement, kingdom);
             float distanceToOwnBase = StrategicAiCache.DistanceToNearestFriendlyFortification(settlement, kingdom);
 
-            if (StrategicAiState.IsTargetOnCooldown(settlement) ||
+            if (StrategicAiState.IsTargetOnCooldown(kingdom, settlement) ||
                 (!isFrontline && distanceToOwnBase > StrategicAiTuning.OverextendedTargetDistance * 1.65f) ||
                 (IsMinorOrRebelFaction(settlement.MapFaction) && !settlement.IsTown && GetEconomicValue(settlement) < 500f))
             {

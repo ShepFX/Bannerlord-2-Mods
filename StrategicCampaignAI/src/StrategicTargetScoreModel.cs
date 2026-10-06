@@ -38,11 +38,29 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
             // it of its own accord. The previous implementation forced this by
             // invoking a private engine method through reflection, which
             // repeatedly failed to take effect and re-fired every few hours.
+            //
+            // The verdict itself is reached once an hour in
+            // StrategicCampaignAIBehavior.UpdateSiegeWatch and only read here.
+            // Recomputing it per query was what produced the two-castle loop:
+            // the check can only ever fire for the settlement a party is
+            // currently besieging, so lifting the siege deleted the penalty and
+            // the abandoned castle scored full value again on the very next
+            // evaluation. Confirming it over several hours means a relief force
+            // has to actually stay before an army walks away.
             if (missionType == Army.ArmyTypes.Besieger &&
                 StrategicAiTuning.EnableSiegeRetreat &&
-                IsSiegeHopeless(targetSettlement, mobileParty, ourStrength))
+                StrategicAiState.IsSiegeAbandonConfirmed(mobileParty, targetSettlement))
             {
                 return score * StrategicAiTuning.SiegeAbandonMultiplier;
+            }
+
+            // A target this faction recently failed against is strongly suppressed
+            // for offensive missions so the army picks something else for the
+            // duration of the cooldown, instead of marching straight back.
+            if ((missionType == Army.ArmyTypes.Besieger || missionType == Army.ArmyTypes.Raider) &&
+                StrategicAiState.IsTargetOnCooldown(mobileParty?.MapFaction, targetSettlement))
+            {
+                return score * StrategicAiTuning.FailedTargetMultiplier;
             }
 
             return score
@@ -55,36 +73,6 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
             // decision loop -- fall back to the unmodified vanilla score.
             return score;
         }
-    }
-
-    /// <summary>
-    /// True when the relief force around a besieged settlement clearly outmatches
-    /// the besieger. Only applies to a siege this party is actually conducting,
-    /// so merely approaching a target never triggers it.
-    /// </summary>
-    private static bool IsSiegeHopeless(Settlement targetSettlement, MobileParty mobileParty, float ourStrength)
-    {
-        if (targetSettlement == null || mobileParty == null || mobileParty.MapFaction == null)
-        {
-            return false;
-        }
-
-        if (mobileParty.BesiegedSettlement != targetSettlement)
-        {
-            return false;
-        }
-
-        // Rival kingdoms only, on a tight radius. Counting every looter and
-        // minor-faction party within a 95-unit sweep as "relief" made the AI walk
-        // away from sieges it was winning -- the same mistake that once made
-        // every kingdom permanently war-exhausted.
-        float relief = StrategicAiHelpers.NearbyMajorEnemyLordStrength(
-            targetSettlement,
-            mobileParty.MapFaction,
-            StrategicAiTuning.SiegeReliefRadius);
-
-        float ourTotal = mobileParty.Army?.EstimatedStrength ?? ourStrength;
-        return ourTotal > 0f && relief > ourTotal * StrategicAiTuning.SiegeAbandonReliefRatio;
     }
 
     /// <summary>
@@ -138,11 +126,6 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
         }
 
         float multiplier = 1f;
-
-        if (StrategicAiState.IsTargetOnCooldown(targetSettlement))
-        {
-            multiplier *= StrategicAiTuning.SiegeViabilityWeakReliefMultiplier;
-        }
 
         if (StrategicAiHelpers.IsMinorOrRebelFaction(theirFaction) &&
             !targetSettlement.IsTown &&
@@ -234,7 +217,11 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
             multiplier *= StrategicAiTuning.SiegeViabilityWeakReliefMultiplier;
         }
 
-        if (mobileParty.GetNumDaysForFoodToLast() < 3)
+        // Low supplies should discourage *starting* a siege, not re-litigate one
+        // already underway. A besieging army's food routinely dips below three
+        // days, and applying the penalty to its own objective toggled a 0.6
+        // factor on and off underneath a siege it was winning.
+        if (mobileParty.BesiegedSettlement != targetSettlement && mobileParty.GetNumDaysForFoodToLast() < 3)
         {
             multiplier *= StrategicAiTuning.SiegeViabilityWeakReliefMultiplier;
         }
@@ -315,6 +302,20 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
         if (StrategicAiHelpers.HasFriendlyNoblePrisoners(settlement, ourFaction))
         {
             multiplier *= StrategicAiTuning.NoblePrisonerReliefMultiplier;
+        }
+
+        // The same commitment anchor the offensive path has. Without it the two
+        // sides were asymmetric -- offence held its objective at 1.4x while
+        // defence had nothing -- and the defensive terms above are themselves
+        // self-cancelling: IsUnderSiege and IsUnderRaid both stop being true the
+        // moment the relief force arrives, so the score that pulled an army to a
+        // fief evaporated on arrival and the army left again.
+        Army? army = mobileParty.Army;
+        if (army != null &&
+            army.LeaderParty == mobileParty &&
+            StrategicAiState.GetTargetLock(army) == settlement)
+        {
+            multiplier *= StrategicAiTuning.CurrentObjectiveStickinessMultiplier;
         }
 
         if (StrategicAiState.GetFactionStatus(ourFaction).IsExhausted)

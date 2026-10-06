@@ -18,20 +18,35 @@ namespace StrategicCampaignAI;
 /// </summary>
 internal static class StrategicAiCache
 {
+    /// <summary>
+    /// Cache identity for a map query.
+    ///
+    /// The radius is part of the key. It was not, and the omission was not
+    /// cosmetic: six callers share these dictionaries across sweeps of 45, 55,
+    /// 80 and 95 units, so whichever caller reached a given settlement first in
+    /// a campaign hour fixed the radius every other caller got for that hour.
+    /// The winning caller changed from hour to hour, which meant the two
+    /// thresholds that drive siege abandonment and threat assessment could
+    /// change answer with nothing having moved on the map.
+    /// </summary>
     private readonly struct Key : IEquatable<Key>
     {
         private readonly Settlement _settlement;
         private readonly IFaction? _faction;
+        private readonly float _radius;
 
-        public Key(Settlement settlement, IFaction? faction)
+        public Key(Settlement settlement, IFaction? faction, float radius = 0f)
         {
             _settlement = settlement;
             _faction = faction;
+            _radius = radius;
         }
 
         public bool Equals(Key other)
         {
-            return ReferenceEquals(_settlement, other._settlement) && ReferenceEquals(_faction, other._faction);
+            return ReferenceEquals(_settlement, other._settlement) &&
+                   ReferenceEquals(_faction, other._faction) &&
+                   _radius.Equals(other._radius);
         }
 
         public override bool Equals(object? obj) => obj is Key other && Equals(other);
@@ -41,7 +56,8 @@ internal static class StrategicAiCache
             unchecked
             {
                 int hash = _settlement?.GetHashCode() ?? 0;
-                return (hash * 397) ^ (_faction?.GetHashCode() ?? 0);
+                hash = (hash * 397) ^ (_faction?.GetHashCode() ?? 0);
+                return (hash * 397) ^ _radius.GetHashCode();
             }
         }
     }
@@ -137,7 +153,7 @@ internal static class StrategicAiCache
     public static bool HasFriendlyFortificationNear(Settlement target, IFaction faction, float radius)
     {
         EnsureFresh();
-        var key = new Key(target, faction);
+        var key = new Key(target, faction, radius);
         if (FriendlyFortNear.TryGetValue(key, out bool cached))
         {
             return cached;
@@ -163,7 +179,7 @@ internal static class StrategicAiCache
     public static bool HasEnemyFortificationNear(Settlement target, IFaction faction, float radius)
     {
         EnsureFresh();
-        var key = new Key(target, faction);
+        var key = new Key(target, faction, radius);
         if (EnemyFortNear.TryGetValue(key, out bool cached))
         {
             return cached;
@@ -226,7 +242,7 @@ internal static class StrategicAiCache
     public static float NearbyEnemyLordStrength(Settlement settlement, IFaction faction, float radius, bool majorOnly = false)
     {
         EnsureFresh();
-        var key = new Key(settlement, faction);
+        var key = new Key(settlement, faction, radius);
         Dictionary<Key, float> cache = majorOnly ? NearbyMajorEnemyStrength : NearbyEnemyStrength;
         if (cache.TryGetValue(key, out float cached))
         {
