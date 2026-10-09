@@ -1,3 +1,22 @@
+Strategic Campaign AI - v0.3.3
+==============================
+
+Requires Mount & Blade II: Bannerlord v1.4.8. Works with or without War Sails.
+
+
+Fixes
+-----
+- War Sails: naval patrols, fleets and naval armies work again. The mod's
+  four campaign AI models replaced the DLC's own naval versions outright, so
+  ships lost their naval logic; coastal patrols, for example, sat frozen at
+  the shore. The models now wrap whatever model was registered before them
+  (the DLC's, vanilla's or another mod's) and only adjust its answers, so
+  naval behaviour and other mods' AI changes are kept.
+- The mod now loads after War Sails when the DLC is installed.
+- The log now names the models the mod is wrapping at startup, so a log
+  shows at a glance whether the DLC's AI is underneath.
+
+
 Strategic Campaign AI - v0.3.2
 ==============================
 

@@ -1,5 +1,6 @@
 using System;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -21,11 +22,25 @@ namespace StrategicCampaignAI;
 /// settlement, and performs the transfer itself. Answering that question is the
 /// supported way to do this: no roster is touched by the mod at all.
 /// </summary>
-public sealed class StrategicGarrisonModel : DefaultSettlementGarrisonModel
+public sealed class StrategicGarrisonModel : SettlementGarrisonModel, IWrappingModel
 {
+    public string WrappedModelName => BaseModel?.GetType().Name ?? "none";
+
+    // Wraps the model registered before ours (War Sails' garrison rules, when present) instead of replacing it.
+    // Everything not adjusted below passes straight through.
+    private SettlementGarrisonModel? _fallback;
+    private SettlementGarrisonModel Base => BaseModel ?? (_fallback ??= new DefaultSettlementGarrisonModel());
+
+    public override int GetMaximumDailyAutoRecruitmentCount(Town town) => Base.GetMaximumDailyAutoRecruitmentCount(town);
+    public override ExplainedNumber CalculateBaseGarrisonChange(Settlement settlement, bool includeDescriptions = false) =>
+        Base.CalculateBaseGarrisonChange(settlement, includeDescriptions);
+    public override int FindNumberOfTroopsToTakeFromGarrison(MobileParty mobileParty, Settlement settlement, float idealGarrisonStrengthPerWalledCenter = 0f) =>
+        Base.FindNumberOfTroopsToTakeFromGarrison(mobileParty, settlement, idealGarrisonStrengthPerWalledCenter);
+    public override float GetMaximumDailyRepairAmount(Settlement settlement) => Base.GetMaximumDailyRepairAmount(settlement);
+
     public override int FindNumberOfTroopsToLeaveToGarrison(MobileParty mobileParty, Settlement settlement)
     {
-        int baseCount = base.FindNumberOfTroopsToLeaveToGarrison(mobileParty, settlement);
+        int baseCount = Base.FindNumberOfTroopsToLeaveToGarrison(mobileParty, settlement);
 
         if (!StrategicAiTuning.EnableGarrisonReinforcement)
         {

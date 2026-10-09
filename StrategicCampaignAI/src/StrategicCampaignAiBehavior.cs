@@ -6,6 +6,7 @@ using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace StrategicCampaignAI;
@@ -73,6 +74,21 @@ public sealed class StrategicCampaignAIBehavior : CampaignBehaviorBase
                              ", initiative: " + StrategicAiTuning.EnableInitiativeShaping);
         StrategicAiLog.Write("offence clamp: " + StrategicAiTuning.MinOffenseMultiplier + " to " + StrategicAiTuning.MaxOffenseMultiplier +
                              ", defence clamp: " + StrategicAiTuning.MinDefenseMultiplier + " to " + StrategicAiTuning.MaxDefenseMultiplier);
+
+        // Which models ours sit on top of. With War Sails these should be the DLC's naval models; a vanilla
+        // Default* name there means another mod registered after the DLC, or the DLC is not loaded.
+        GameModels? models = Campaign.Current?.Models;
+        StrategicAiLog.Write("wrapping: target score " + BaseName(models?.TargetScoreCalculatingModel) +
+                             ", party AI " + BaseName(models?.MobilePartyAIModel) +
+                             ", army " + BaseName(models?.ArmyManagementCalculationModel) +
+                             ", garrison " + BaseName(models?.SettlementGarrisonModel));
+    }
+
+    /// <summary>The model ours wraps, or who replaced ours if another mod registered after us.</summary>
+    private static string BaseName<T>(MBGameModel<T>? active) where T : GameModel
+    {
+        if (active == null) return "?";
+        return active is IWrappingModel ours ? ours.WrappedModelName : "(replaced by " + active.GetType().Name + ")";
     }
 
     private static void Log(string message)

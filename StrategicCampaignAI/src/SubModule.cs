@@ -1,4 +1,5 @@
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
@@ -18,10 +19,12 @@ public sealed class SubModule : MBSubModuleBase
 
         if (game.GameType is Campaign && gameStarterObject is CampaignGameStarter campaignStarter)
         {
-            campaignStarter.AddModel(new StrategicTargetScoreModel());
-            campaignStarter.AddModel(new StrategicArmyManagementModel());
-            campaignStarter.AddModel(new StrategicGarrisonModel());
-            campaignStarter.AddModel(new StrategicPartyAIModel());
+            // The generic overload hands each model the one registered before it (vanilla's, or War Sails' naval
+            // model) as BaseModel, so ours wrap it rather than replace it.
+            campaignStarter.AddModel<TargetScoreCalculatingModel>(new StrategicTargetScoreModel());
+            campaignStarter.AddModel<ArmyManagementCalculationModel>(new StrategicArmyManagementModel());
+            campaignStarter.AddModel<SettlementGarrisonModel>(new StrategicGarrisonModel());
+            campaignStarter.AddModel<MobilePartyAIModel>(new StrategicPartyAIModel());
             campaignStarter.AddBehavior(new StrategicCampaignAIBehavior());
         }
     }

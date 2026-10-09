@@ -1,5 +1,6 @@
 using System;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.ComponentInterfaces;
 using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -18,14 +19,33 @@ namespace StrategicCampaignAI;
 /// worth guarding. That is the cause of the reported passive armies that circle
 /// their own fiefs and never commit to a siege.
 /// </summary>
-public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingModel
+public sealed class StrategicTargetScoreModel : TargetScoreCalculatingModel, IWrappingModel
 {
+    public string WrappedModelName => BaseModel?.GetType().Name ?? "none";
+
+    // Wraps the model registered before ours instead of replacing it: the engine hands it over as BaseModel. With
+    // War Sails that is the DLC's naval model; subclassing the vanilla default threw the naval logic away and left
+    // naval patrols and fleets without it. Everything not adjusted below passes straight through.
+    private TargetScoreCalculatingModel? _fallback;
+    private TargetScoreCalculatingModel Base => BaseModel ?? (_fallback ??= new DefaultTargetScoreCalculatingModel());
+
+    public override float TravelingToAssignmentFactor => Base.TravelingToAssignmentFactor;
+    public override float BesiegingFactor => Base.BesiegingFactor;
+    public override float AssaultingTownFactor => Base.AssaultingTownFactor;
+    public override float RaidingFactor => Base.RaidingFactor;
+    public override float DefendingFactor => Base.DefendingFactor;
+    public override float GetDefensivePatrollingFactor(bool isNavalPatrolling) => Base.GetDefensivePatrollingFactor(isNavalPatrolling);
+    public override float GetOffensivePatrollingFactor(bool isNavalPatrolling) => Base.GetOffensivePatrollingFactor(isNavalPatrolling);
+    public override float CalculateOffensivePatrollingScoreForSettlement(Settlement settlement, bool isTargetingPort, MobileParty mobileParty) =>
+        Base.CalculateOffensivePatrollingScoreForSettlement(settlement, isTargetingPort, mobileParty);
+    public override float CurrentObjectiveValue(MobileParty mobileParty) => Base.CurrentObjectiveValue(mobileParty);
+
     public override float GetTargetScoreForFaction(Settlement targetSettlement, Army.ArmyTypes missionType, MobileParty mobileParty, float ourStrength)
     {
         float score;
         try
         {
-            score = base.GetTargetScoreForFaction(targetSettlement, missionType, mobileParty, ourStrength);
+            score = Base.GetTargetScoreForFaction(targetSettlement, missionType, mobileParty, ourStrength);
         }
         catch (Exception)
         {
@@ -237,7 +257,7 @@ public sealed class StrategicTargetScoreModel : DefaultTargetScoreCalculatingMod
         float score;
         try
         {
-            score = base.CalculateDefensivePatrollingScoreForSettlement(settlement, isTargetingPort, mobileParty);
+            score = Base.CalculateDefensivePatrollingScoreForSettlement(settlement, isTargetingPort, mobileParty);
         }
         catch (Exception)
         {
